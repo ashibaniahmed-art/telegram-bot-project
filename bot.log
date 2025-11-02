@@ -1,0 +1,7 @@
+2025-11-01 17:33:12,325 - INFO - Init DB -> C:\Users\OFOQ\Desktop\„Ã·œ ÃœÌœ\telegram-bot-project\scripts\..\data.db
+2025-11-01 17:33:12,327 - INFO - Database initialized / migrated successfully.
+2025-11-01 17:33:12,334 - INFO - Found lock file, previous pid: 32416
+2025-11-01 17:33:12,750 - INFO - Starting Application (bot) ...
+2025-11-01 17:33:13,467 - INFO - Application started
+2025-11-01 17:33:23,837 - INFO - Application is stopping. This might take a moment.
+2025-11-01 17:33:23,838 - INFO - Application.stop() complete

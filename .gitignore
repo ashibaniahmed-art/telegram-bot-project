@@ -1,0 +1,5 @@
+﻿.env
+data.db
+*.db.bak_*
+__pycache__/
+.venv/
