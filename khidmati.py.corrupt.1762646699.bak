@@ -1,0 +1,3014 @@
+from telegram import Update, ReplyKeyboardMarkupfrom telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkupfrom telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+
+import osfrom telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandlerfrom telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
+
+import logging
+
+from dotenv import load_dotenvimport sqlite3import sqlite3
+
+
+
+load_dotenv()import osimport os
+
+logging.basicConfig(level=logging.INFO)
+
+TOKEN = os.getenv("BOT_TOKEN") or ""import loggingimport logging
+
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):import reimport re
+
+    await update.message.reply_text("بوت جاهز.")
+
+from datetime import datetime, timedeltafrom datetime import datetime, timedelta
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text("استخدم الأزرار.")from dotenv import load_dotenvfrom dotenv import load_dotenv
+
+
+
+
+
+def main():
+
+    if not TOKEN:load_dotenv()load_dotenv()
+
+        logging.info("BOT_TOKEN not set. Exiting.")
+
+        returnlogging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+    app = Application.builder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+    app.run_polling()TOKEN = os.getenv("BOT_TOKEN") or ""TOKEN = os.getenv("BOT_TOKEN") or ""
+
+
+
+if __name__ == '__main__':if not TOKEN:if not TOKEN:
+
+    main()
+
+    logging.warning("BOT_TOKEN not set; khidmati.py will not start the bot without it.")    logging.warning("BOT_TOKEN not set; khidmati.py will not start the bot without it.")
+
+DATA_ENC_KEY = os.getenv("DATA_ENC_KEY") or ""DATA_ENC_KEY = os.getenv("DATA_ENC_KEY") or ""
+
+try:try:
+
+    ADMIN_ID = int(os.getenv("ADMIN_USER_ID", "0")) or 0    ADMIN_ID = int(os.getenv("ADMIN_USER_ID", "0")) or 0
+
+except Exception:except Exception:
+
+    ADMIN_ID = 0    ADMIN_ID = 0
+
+
+
+# Simple category -> services mapping# Simple category -> services mapping
+
+SERVICE_CATEGORIES = {SERVICE_CATEGORIES = {
+
+    "🏠 صيانة منزلية": ["سباكة", "طلاء منازل", "تركيب الأثاث", "أرضيات"],    "🏠 صيانة منزلية": ["سباكة", "طلاء منازل", "تركيب الأثاث", "أرضيات"],
+
+    "🔌 الخدمات التقنية": ["تركيب الكاميرات", "فني انترنت", "كهربائي منازل"],    "🔌 الخدمات التقنية": ["تركيب الكاميرات", "فني انترنت", "كهربائي منازل"],
+
+    "📚 الخدمات التعليمية": ["📚 تمهيدي", "📚 اعدادي", "📚 ثانوي أو معهد", "📚 اكاديمي"],    "📚 الخدمات التعليمية": ["📚 تمهيدي", "📚 اعدادي", "📚 ثانوي أو معهد", "📚 اكاديمي"],
+
+    "💈 حلاقتك في حوشك": [],    "💈 حلاقتك في حوشك": [],
+
+}}
+
+
+
+WORK_TYPES = []WORK_TYPES = []
+
+for vals in SERVICE_CATEGORIES.values():for vals in SERVICE_CATEGORIES.values():
+
+    WORK_TYPES.extend(vals)    WORK_TYPES.extend(vals)
+
+
+
+MAIN_MENU_LAYOUT = [["🛠️ الخدمات", "📝 التسجيل للحرفيين"], ["🔓 تفعيل الاشتراك", "📊حسابي"], ["📜 نبذة عنا", "📞 تواصل معنا"]]MAIN_MENU_LAYOUT = [["🛠️ الخدمات", "📝 التسجيل للحرفيين"], ["🔓 تفعيل الاشتراك", "📊حسابي"], ["📜 نبذة عنا", "📞 تواصل معنا"]]
+
+MAIN_KB = ReplyKeyboardMarkup(MAIN_MENU_LAYOUT, resize_keyboard=True)MAIN_KB = ReplyKeyboardMarkup(MAIN_MENU_LAYOUT, resize_keyboard=True)
+
+
+
+user_states = {}user_states = {}
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
+
+
+
+def init_db():def init_db():
+
+    conn = sqlite3.connect(DB_PATH)    conn = sqlite3.connect(DB_PATH)
+
+    cur = conn.cursor()    cur = conn.cursor()
+
+    cur.execute("""    cur.execute("""
+
+    CREATE TABLE IF NOT EXISTS workers (    CREATE TABLE IF NOT EXISTS workers (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        user_id INTEGER UNIQUE,        user_id INTEGER UNIQUE,
+
+        name TEXT,        name TEXT,
+
+        phone TEXT,        phone TEXT,
+
+        work_type TEXT,        work_type TEXT,
+
+        lat REAL,        lat REAL,
+
+        lon REAL,        lon REAL,
+
+        worker_code INTEGER,        worker_code INTEGER,
+
+        subscription_level INTEGER DEFAULT 0,        subscription_level INTEGER DEFAULT 0,
+
+        subscription_expiry TEXT        subscription_expiry TEXT
+
+    )    )
+
+    """)    """)
+
+    cur.execute("""    cur.execute("""
+
+    CREATE TABLE IF NOT EXISTS clients (    CREATE TABLE IF NOT EXISTS clients (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        user_id INTEGER,        user_id INTEGER,
+
+        name TEXT,        name TEXT,
+
+        phone TEXT,        phone TEXT,
+
+        service TEXT,        service TEXT,
+
+        lat REAL,        lat REAL,
+
+        lon REAL,        lon REAL,
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+    )    )
+
+    """)    """)
+
+    cur.execute("""    cur.execute("""
+
+    CREATE TABLE IF NOT EXISTS coupons (    CREATE TABLE IF NOT EXISTS coupons (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        code TEXT UNIQUE,        code TEXT UNIQUE,
+
+        amount INTEGER,        amount INTEGER,
+
+        used INTEGER DEFAULT 0,        used INTEGER DEFAULT 0,
+
+        used_at TEXT        used_at TEXT
+
+    )    )
+
+    """)    """)
+
+    conn.commit(); conn.close()    conn.commit(); conn.close()
+
+
+
+def save_worker_to_db(user_id, state):def save_worker_to_db(user_id, state):
+
+    conn = sqlite3.connect(DB_PATH)    conn = sqlite3.connect(DB_PATH)
+
+    cur = conn.cursor()    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM workers WHERE user_id = ?", (user_id,))    cur.execute("SELECT id FROM workers WHERE user_id = ?", (user_id,))
+
+    row = cur.fetchone()    row = cur.fetchone()
+
+    if row:    if row:
+
+        cur.execute("UPDATE workers SET name=?, phone=?, work_type=? WHERE user_id=?",        cur.execute("UPDATE workers SET name=?, phone=?, work_type=? WHERE user_id=?",
+
+                    (state.get("name"), state.get("phone"), state.get("work_type"), user_id))                    (state.get("name"), state.get("phone"), state.get("work_type"), user_id))
+
+    else:    else:
+
+        cur.execute("INSERT INTO workers (user_id, name, phone, work_type) VALUES (?,?,?,?)",        cur.execute("INSERT INTO workers (user_id, name, phone, work_type) VALUES (?,?,?,?)",
+
+                    (user_id, state.get("name"), state.get("phone"), state.get("work_type")))                    (user_id, state.get("name"), state.get("phone"), state.get("work_type")))
+
+    conn.commit(); conn.close()    conn.commit(); conn.close()
+
+
+
+def fetch_worker_by_code(code):def fetch_worker_by_code(code):
+
+    conn = sqlite3.connect(DB_PATH)    conn = sqlite3.connect(DB_PATH)
+
+    cur = conn.cursor()    cur = conn.cursor()
+
+    cur.execute("SELECT id, user_id, name, phone, work_type FROM workers WHERE worker_code = ?", (code,))    cur.execute("SELECT id, user_id, name, phone, work_type FROM workers WHERE worker_code = ?", (code,))
+
+    r = cur.fetchone(); conn.close()    r = cur.fetchone(); conn.close()
+
+    if not r:    if not r:
+
+        return None        return None
+
+    return {"id": r[0], "user_id": r[1], "name": r[2], "phone": r[3], "work_type": r[4]}    return {"id": r[0], "user_id": r[1], "name": r[2], "phone": r[3], "work_type": r[4]}
+
+
+
+def redeem_coupon_for_worker(code_input, requesting_user_id, target_worker_user_id=None, desired_tier=None):def redeem_coupon_for_worker(code_input, requesting_user_id, target_worker_user_id=None, desired_tier=None):
+
+    # Minimal safe implementation: look up coupon and mark used    # Minimal safe implementation: look up coupon and mark used
+
+    if not code_input:    if not code_input:
+
+        return False, "كود غير صالح."        return False, "كود غير صالح."
+
+    c = code_input.strip().upper()    c = code_input.strip().upper()
+
+    conn = sqlite3.connect(DB_PATH)    conn = sqlite3.connect(DB_PATH)
+
+    cur = conn.cursor()    cur = conn.cursor()
+
+    cur.execute("SELECT id, amount, used FROM coupons WHERE UPPER(code)=?", (c,))    cur.execute("SELECT id, amount, used FROM coupons WHERE UPPER(code)=?", (c,))
+
+    row = cur.fetchone()    row = cur.fetchone()
+
+    if not row:    if not row:
+
+        conn.close(); return False, "الكود غير موجود أو غير صالح."        conn.close(); return False, "الكود غير موجود أو غير صالح."
+
+    cid, amount, used = row    cid, amount, used = row
+
+    if used:    if used:
+
+        conn.close(); return False, "هذا الكود مستخدم من قبل."        conn.close(); return False, "هذا الكود مستخدم من قبل."
+
+    cur.execute("UPDATE coupons SET used=1, used_at=CURRENT_TIMESTAMP WHERE id=?", (cid,))    cur.execute("UPDATE coupons SET used=1, used_at=CURRENT_TIMESTAMP WHERE id=?", (cid,))
+
+    conn.commit(); conn.close()    conn.commit(); conn.close()
+
+    return True, "تم تفعيل الكود."     return True, "تم تفعيل الكود." 
+
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_states.pop(update.effective_user.id, None)    user_states.pop(update.effective_user.id, None)
+
+    await update.message.reply_text("مرحبًا بكم في بوت خدمتي", reply_markup=MAIN_KB)    await update.message.reply_text("مرحبًا بكم في بوت خدمتي", reply_markup=MAIN_KB)
+
+
+
+async def redeem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):async def redeem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_states[update.effective_user.id] = {"role": "redeem", "step": "code"}    user_states[update.effective_user.id] = {"role": "redeem", "step": "code"}
+
+    await update.message.reply_text("أدخل كود الشحن (الكوبون) لتفعيله:")    await update.message.reply_text("أدخل كود الشحن (الكوبون) لتفعيله:")
+
+
+
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    msg = update.message    msg = update.message
+
+    if not msg or not msg.contact:    if not msg or not msg.contact:
+
+        return        return
+
+    user_id = msg.from_user.id    user_id = msg.from_user.id
+
+    state = user_states.get(user_id)    state = user_states.get(user_id)
+
+    if not state:    if not state:
+
+        await msg.reply_text("ابدأ من جديد بالضغط على /start.")        await msg.reply_text("ابدأ من جديد بالضغط على /start.")
+
+        return        return
+
+    if state.get("role") == "worker" and state.get("step") == "phone":    if state.get("role") == "worker" and state.get("step") == "phone":
+
+        state["phone"] = msg.contact.phone_number        state["phone"] = msg.contact.phone_number
+
+        state["step"] = "choose_sub"        state["step"] = "choose_sub"
+
+        save_worker_to_db(user_id, state)        save_worker_to_db(user_id, state)
+
+        await msg.reply_text("تم حفظ رقمك. شارك موقعك لاحقًا.")        await msg.reply_text("تم حفظ رقمك. شارك موقعك لاحقًا.")
+
+
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query    query = update.callback_query
+
+    if not query:    if not query:
+
+        return        return
+
+    await query.answer()    await query.answer()
+
+    data = query.data or ""    data = query.data or ""
+
+    if data == "skip_sub":    if data == "skip_sub":
+
+        uid = query.from_user.id        uid = query.from_user.id
+
+        st = user_states.get(uid, {})        st = user_states.get(uid, {})
+
+        st["step"] = "location"        st["step"] = "location"
+
+        user_states[uid] = st        user_states[uid] = st
+
+        await query.edit_message_text("تم التخطي. الرجاء ارسال موقعك.")        await query.edit_message_text("تم التخطي. الرجاء ارسال موقعك.")
+
+
+
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    msg = update.message    msg = update.message
+
+    if not msg:    if not msg:
+
+        return        return
+
+    user_id = msg.from_user.id    user_id = msg.from_user.id
+
+    text = (msg.text or "").strip()    text = (msg.text or "").strip()
+
+    # Main menu buttons    # Main menu buttons
+
+    if text in ("/start", "start", "مرحبا"):    if text in ("/start", "start", "مرحبا"):
+
+        await start(update, context); return        await start(update, context); return
+
+    if text in ("🛠️ الخدمات", "الخدمات"):    if text in ("🛠️ الخدمات", "الخدمات"):
+
+        cats = list(SERVICE_CATEGORIES.keys())        cats = list(SERVICE_CATEGORIES.keys())
+
+        kb = ReplyKeyboardMarkup([[c] for c in cats], resize_keyboard=True)        kb = ReplyKeyboardMarkup([[c] for c in cats], resize_keyboard=True)
+
+        user_states[user_id] = {"role": "browsing", "step": "categories"}        user_states[user_id] = {"role": "browsing", "step": "categories"}
+
+        await msg.reply_text("اختر الفئة:", reply_markup=kb)        await msg.reply_text("اختر الفئة:", reply_markup=kb)
+
+        return        return
+
+    if text in SERVICE_CATEGORIES:    if text in SERVICE_CATEGORIES:
+
+        services = SERVICE_CATEGORIES.get(text) or []        services = SERVICE_CATEGORIES.get(text) or []
+
+        if services:        if services:
+
+            kb = ReplyKeyboardMarkup([[s] for s in services], resize_keyboard=True)            kb = ReplyKeyboardMarkup([[s] for s in services], resize_keyboard=True)
+
+            user_states[user_id] = {"role": "browsing", "step": "services", "category": text}            user_states[user_id] = {"role": "browsing", "step": "services", "category": text}
+
+            await msg.reply_text(f"اختر الخدمة من فئة {text}:", reply_markup=kb)            await msg.reply_text(f"اختر الخدمة من فئة {text}:", reply_markup=kb)
+
+            return            return
+
+        else:        else:
+
+            # direct service category            # direct service category
+
+            text = text            text = text
+
+    # client selects a service    # client selects a service
+
+    if text in WORK_TYPES:    if text in WORK_TYPES:
+
+        name = (update.effective_user.first_name or "")        name = (update.effective_user.first_name or "")
+
+        state = {"role": "client", "service": text, "name": name}        state = {"role": "client", "service": text, "name": name}
+
+        user_states[user_id] = state        user_states[user_id] = state
+
+        kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True)        kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True)
+
+        await msg.reply_text(f"لقد اخترت: {text}\nالآن شارك موقعك:", reply_markup=kb)        await msg.reply_text(f"لقد اخترت: {text}\nالآن شارك موقعك:", reply_markup=kb)
+
+        return        return
+
+    # worker registration    # worker registration
+
+    if text in ("📝 التسجيل للحرفيين", "التسجيل للحرفيين"):    if text in ("📝 التسجيل للحرفيين", "التسجيل للحرفيين"):
+
+        user_states[user_id] = {"role": "worker", "step": "name"}        user_states[user_id] = {"role": "worker", "step": "name"}
+
+        await msg.reply_text("سجل كعامل - اكتب اسمك:")        await msg.reply_text("سجل كعامل - اكتب اسمك:")
+
+        return        return
+
+    st = user_states.get(user_id)    st = user_states.get(user_id)
+
+    if st and st.get("role") == "worker":    if st and st.get("role") == "worker":
+
+        step = st.get("step")        step = st.get("step")
+
+        if step == "name":        if step == "name":
+
+            st["name"] = text; st["step"] = "work_type"            st["name"] = text; st["step"] = "work_type"
+
+            cats = list(SERVICE_CATEGORIES.keys())            cats = list(SERVICE_CATEGORIES.keys())
+
+            kb = ReplyKeyboardMarkup([[c] for c in cats], resize_keyboard=True)            kb = ReplyKeyboardMarkup([[c] for c in cats], resize_keyboard=True)
+
+            await msg.reply_text("اختر الفئة/الخدمة:", reply_markup=kb)            await msg.reply_text("اختر الفئة/الخدمة:", reply_markup=kb)
+
+            user_states[user_id] = st            user_states[user_id] = st
+
+            return            return
+
+    # redeem flow        if step == "work_type":
+
+    if st and st.get("role") == "redeem" and st.get("step") == "code":            if text in SERVICE_CATEGORIES:
+
+        code = text.strip()                services = SERVICE_CATEGORIES.get(text) or []
+
+        ok, msg_text = redeem_coupon_for_worker(code, user_id)                if services:
+
+        await msg.reply_text(msg_text)                    kb = ReplyKeyboardMarkup([[s] for s in services], resize_keyboard=True)
+
+        user_states.pop(user_id, None)                    st["step"] = "work_type"
+
+        return                    user_states[user_id] = st
+
+    # default                    await msg.reply_text(f"اختر الخدمة من {text}:", reply_markup=kb)
+
+    await msg.reply_text("لم أفهم. استخدم الأزرار أو اكتب /start للعودة للقائمة.", reply_markup=MAIN_KB)                    return
+
+                else:
+
+def main():                    st["work_type"] = text
+
+    init_db()                    st["step"] = "phone"
+
+    if not TOKEN:                    user_states[user_id] = st
+
+        logging.info("BOT_TOKEN missing; exiting main without starting bot.")                    await msg.reply_text("ادخل رقم هاتفك أو شارك جهة الاتصال:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True))
+
+        return                    return
+
+    app = Application.builder().token(TOKEN).build()            if text in WORK_TYPES:
+
+    app.add_handler(CommandHandler("start", start))                st["work_type"] = text; st["step"] = "phone"
+
+    app.add_handler(CommandHandler("redeem", redeem_cmd))                user_states[user_id] = st
+
+    app.add_handler(CallbackQueryHandler(handle_callback))                await msg.reply_text("ادخل رقم هاتفك أو شارك جهة الاتصال:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True))
+
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))                return
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))    # redeem flow
+
+    logging.info("Starting khidmati bot")    if st and st.get("role") == "redeem" and st.get("step") == "code":
+
+    app.run_polling()        code = text.strip()
+
+        ok, msg_text = redeem_coupon_for_worker(code, user_id)
+
+if __name__ == "__main__":        await msg.reply_text(msg_text)
+
+    main()        user_states.pop(user_id, None)
+
+        return
+    # default
+    await msg.reply_text("لم أفهم. استخدم الأزرار أو اكتب /start للعودة للقائمة.", reply_markup=MAIN_KB)
+
+def main():
+    init_db()
+    if not TOKEN:
+        logging.info("BOT_TOKEN missing; exiting main without starting bot.")
+        return
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("redeem", redeem_cmd))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
+    logging.info("Starting khidmati bot")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
+import math
+import sqlite3
+import os
+import logging
+import asyncio
+import sys
+import re
+from datetime import datetime, timedelta
+import random
+import string
+import time
+import traceback
+from dotenv import load_dotenv
+import requests
+import psutil  # optional: for robust PID check (install psutil) or use os
+
+load_dotenv()  # سيحمّل القيم من .env في مجلد المشروع
+
+# إسكات تحذيرات Deprecation العامة المتعلقة بـ asyncio.WindowsSelectorEventLoopPolicy
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise SystemExit("BOT_TOKEN missing")
+DATA_ENC_KEY = os.getenv("DATA_ENC_KEY")
+if not DATA_ENC_KEY:
+    raise SystemExit("DATA_ENC_KEY missing")
+try:
+    ADMIN_ID = int(os.getenv("ADMIN_USER_ID", "0")) or 0
+except Exception:
+    ADMIN_ID = 0
+
+# Broadcast throttling defaults (batch size and delay between batches in seconds)
+BROADCAST_BATCH_SIZE = int(os.getenv("BROADCAST_BATCH_SIZE", "20"))
+BROADCAST_BATCH_DELAY = float(os.getenv("BROADCAST_BATCH_DELAY", "1.0"))
+
+# Service categorization: top-level categories map to lists of services.
+# This presents a two-level menu: categories -> services. Keep WORK_TYPES
+# as a flat list derived from the categories so existing checks (text in WORK_TYPES)
+# continue to work.
+SERVICE_CATEGORIES = {
+    "🏠 صيانة منزلية": [
+        "سباكة",
+        "طلاء منازل",
+        "تركيب الأثاث",
+        "أرضيات",
+    ],
+    "🔌🌐 الخدمات الكهربائية والتقنية": [
+        "تركيب الكاميرات",
+        "فني انترنت",
+        "كهربائي منازل",
+    ],
+    "👩‍🔧 خدمات النظافة المنزلية": [
+        "عاملات نظافة وأشغال عامة",
+        "تنظيف السجاد و المفروشات في المنزل",
+    ],
+    "🚚 النقل والخدمات الميدانية": [
+        "توصيل رجالي",
+        "توصيل نسائي",
+        "سيارات نقل",
+        "شاحنات مياه صالحة للشرب",
+        "🚑 سيارات اسعاف",
+    ],
+    "📚 الخدمات التعليمية": [
+        "📚 تمهيدي",
+        "📚 اعدادي",
+        "📚 ثانوي أو معهد",
+        "📚 اكاديمي"
+    ],
+    # This category acts as a direct service (no inner subcategories). Selecting
+    conn.close()
+    return worker_code
+
+# Minimal main entry: register the core handlers and run polling.
+def main():
+    init_db()
+    app = Application.builder().token(TOKEN).build()
+    # Core handlers
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("redeem", redeem_cmd))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    # Text messages: use handle_buttons for general message routing
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
+
+    logging.info("Starting bot (khidmati.py)")
+    try:
+        app.run_polling()
+    except Exception:
+        logging.exception("Bot crashed")
+
+if __name__ == "__main__":
+    main()
+    except Exception:
+        logging.exception("fetch_worker_by_code failed")
+        return None
+
+
+def save_worker_to_db(user_id, state):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    lat, lon = state.get("location", (None, None))
+    cur.execute("SELECT id, worker_code FROM workers WHERE user_id = ?", (user_id,))
+    existing = cur.fetchone()
+    if existing:
+        row_id, worker_code = existing
+    cur.execute("UPDATE workers SET name = ?, phone = ?, work_type = ?, lat = ?, lon = ?, education_type = ?, education_specialization = ?, vehicle_type = ?, company_name = ?, halakat_hoosh = ?, work_specialization = ? WHERE user_id = ?",
+        (state.get("name"), state.get("phone"), state.get("work_type"), lat, lon, state.get("edu_type"), state.get("edu_specialization"), state.get("vehicle_type"), state.get("company_name"), state.get("halakat_hoosh"), state.get("work_specialization"), user_id))
+        # apply subscription fields if present in state
+    if state.get("subscription_level") or state.get("subscription_expiry") or state.get("coupon_code"):
+        try:
+            cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE user_id = ?",
+                        (state.get("subscription_level"), state.get("subscription_expiry"), state.get("coupon_code"), user_id))
+        except Exception:
+            logging.debug("Could not update subscription fields for existing worker")
+    if existing and not worker_code:
+        worker_code = 2000 + existing[0]
+        try:
+            cur.execute("UPDATE workers SET worker_code = ? WHERE id = ?", (worker_code, existing[0]))
+        except Exception:
+            pass
+    conn.commit()
+    if existing:
+        conn.close()
+        return worker_code
+    cur.execute("INSERT INTO workers (user_id, name, phone, work_type, lat, lon, education_type, education_specialization, vehicle_type, company_name, halakat_hoosh, work_specialization) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (user_id, state.get("name"), state.get("phone"), state.get("work_type"), lat, lon, state.get("edu_type"), state.get("edu_specialization"), state.get("vehicle_type"), state.get("company_name"), state.get("halakat_hoosh"), state.get("work_specialization")))
+    conn.commit()
+    rowid = cur.lastrowid
+    worker_code = 2000 + rowid
+    try:
+        cur.execute("UPDATE workers SET worker_code = ? WHERE id = ?", (worker_code, rowid))
+        conn.commit()
+    except Exception:
+        pass
+    # بعد الإدراج، طبق حقول الاشتراك إن وُجدت
+    try:
+        if state.get("subscription_level") or state.get("subscription_expiry") or state.get("coupon_code"):
+            cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE id = ?",
+                        (state.get("subscription_level"), state.get("subscription_expiry"), state.get("coupon_code"), rowid))
+            conn.commit()
+    except Exception:
+        logging.debug("Could not set subscription fields for new worker")
+    conn.close()
+    return worker_code
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
+import math
+import sqlite3
+import os
+import logging
+import asyncio
+import sys
+import re
+from datetime import datetime, timedelta
+import random
+import string
+import time
+import traceback
+from dotenv import load_dotenv
+import requests
+import psutil  # optional: for robust PID check (install psutil) or use os
+
+load_dotenv()  # سيحمّل القيم من .env في مجلد المشروع
+
+# إسكات تحذيرات Deprecation العامة المتعلقة بـ asyncio.WindowsSelectorEventLoopPolicy
+import warnings
+
+        CREATE TABLE IF NOT EXISTS seen_users (
+            user_id INTEGER PRIMARY KEY,
+            first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
+        conn.commit()
+
+        # Ensure counter columns exist on workers (safe migration)
+        try:
+            add_column_if_not_exists(conn, "workers", "appearance_count INTEGER DEFAULT 0")
+            add_column_if_not_exists(conn, "workers", "ratings_received INTEGER DEFAULT 0")
+            add_column_if_not_exists(conn, "workers", "selected_count INTEGER DEFAULT 0")
+            # new column to record education service subtype for workers who register under educational services
+            add_column_if_not_exists(conn, "workers", "education_type TEXT")
+            # new column to record vehicle type for workers who register under vehicle-related services
+            add_column_if_not_exists(conn, "workers", "vehicle_type TEXT")
+            # new column to record the teacher's specialization within educational services
+            add_column_if_not_exists(conn, "workers", "education_specialization TEXT")
+            # new column to record company name for certain workers (e.g., فني انترنت)
+            add_column_if_not_exists(conn, "workers", "company_name TEXT")
+            # new column to mark the special service "حلاقتك في حوشك"
+            add_column_if_not_exists(conn, "workers", "halakat_hoosh TEXT")
+            # new column to record a general work specialization (e.g., for 'أرضيات')
+            add_column_if_not_exists(conn, "workers", "work_specialization TEXT")
+        except Exception:
+            logging.exception("Failed adding counter columns")
+
+        conn.commit()
+        conn.close()
+        logging.info("Database initialized / migrated successfully.")
+    except Exception:
+        logging.exception("init_db error")
+
+# ---------- Counters / stats helpers ----------
+def increment_worker_appearance(worker_user_id, by=1):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE workers SET appearance_count = COALESCE(appearance_count,0) + ? WHERE user_id = ?", (by, worker_user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def increment_worker_selected(worker_user_id, by=1):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE workers SET selected_count = COALESCE(selected_count,0) + ? WHERE user_id = ?", (by, worker_user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def increment_worker_ratings(worker_user_id, by=1):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE workers SET ratings_received = COALESCE(ratings_received,0) + ? WHERE user_id = ?", (by, worker_user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def increment_usage_on_request(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        # اذا هذه أول مرة يطلب فيها هذا المستخدم زِدّ total_users
+        cur.execute("SELECT COUNT(*) FROM clients WHERE user_id = ?", (user_id,))
+        prior = cur.fetchone()[0] or 0
+        if prior == 0:
+            cur.execute("UPDATE usage_stats SET total_users = COALESCE(total_users,0) + 1 WHERE id = 1")
+        # دوّن الطلب كـ total_requests
+        cur.execute("UPDATE usage_stats SET total_requests = COALESCE(total_requests,0) + 1 WHERE id = 1")
+        conn.commit()
+    finally:
+        conn.close()
+
+# ---------- DB helpers (single copy) ----------
+def fetch_worker_by_code(code):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT id, user_id, name, phone, work_type, lat, lon, subscription_level, subscription_expiry, worker_code, education_type, education_specialization, vehicle_type, company_name, halakat_hoosh, work_specialization, appearance_count, ratings_received, selected_count FROM workers WHERE worker_code = ?", (code,))
+        r = cur.fetchone()
+        conn.close()
+        if not r:
+            return None
+        return {
+            "id": r[0],
+            "user_id": r[1],
+            "name": r[2],
+            "phone": r[3],
+            "work_type": r[4],
+            "location": (r[5], r[6]),
+            "subscription_level": r[7],
+            "subscription_expiry": r[8],
+            "worker_code": r[9],
+            "education_type": r[10],
+            "education_specialization": r[11],
+            "vehicle_type": r[12],
+            "company_name": r[13],
+            "halakat_hoosh": r[14],
+            "work_specialization": r[15],
+            "appearance_count": r[16] or 0,
+            "ratings_received": r[17] or 0,
+            "selected_count": r[18] or 0
+        }
+    except Exception:
+        logging.exception("fetch_worker_by_code failed")
+        return None
+
+
+def save_worker_to_db(user_id, state):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    lat, lon = state.get("location", (None, None))
+    cur.execute("SELECT id, worker_code FROM workers WHERE user_id = ?", (user_id,))
+    existing = cur.fetchone()
+    if existing:
+        row_id, worker_code = existing
+    cur.execute("UPDATE workers SET name = ?, phone = ?, work_type = ?, lat = ?, lon = ?, education_type = ?, education_specialization = ?, vehicle_type = ?, company_name = ?, halakat_hoosh = ?, work_specialization = ? WHERE user_id = ?",
+        (state.get("name"), state.get("phone"), state.get("work_type"), lat, lon, state.get("edu_type"), state.get("edu_specialization"), state.get("vehicle_type"), state.get("company_name"), state.get("halakat_hoosh"), state.get("work_specialization"), user_id))
+        # apply subscription fields if present in state
+    if state.get("subscription_level") or state.get("subscription_expiry") or state.get("coupon_code"):
+        try:
+            cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE user_id = ?",
+                        (state.get("subscription_level"), state.get("subscription_expiry"), state.get("coupon_code"), user_id))
+        except Exception:
+            logging.debug("Could not update subscription fields for existing worker")
+    if existing and not worker_code:
+        worker_code = 2000 + existing[0]
+        try:
+            cur.execute("UPDATE workers SET worker_code = ? WHERE id = ?", (worker_code, existing[0]))
+        except Exception:
+            pass
+    conn.commit()
+    if existing:
+        conn.close()
+        return worker_code
+    cur.execute("INSERT INTO workers (user_id, name, phone, work_type, lat, lon, education_type, education_specialization, vehicle_type, company_name, halakat_hoosh, work_specialization) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (user_id, state.get("name"), state.get("phone"), state.get("work_type"), lat, lon, state.get("edu_type"), state.get("edu_specialization"), state.get("vehicle_type"), state.get("company_name"), state.get("halakat_hoosh"), state.get("work_specialization")))
+    conn.commit()
+    rowid = cur.lastrowid
+    worker_code = 2000 + rowid
+    try:
+        cur.execute("UPDATE workers SET worker_code = ? WHERE id = ?", (worker_code, rowid))
+        conn.commit()
+    except Exception:
+        pass
+    # بعد الإدراج، طبق حقول الاشتراك إن وُجدت
+    try:
+        if state.get("subscription_level") or state.get("subscription_expiry") or state.get("coupon_code"):
+            cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE id = ?",
+                        (state.get("subscription_level"), state.get("subscription_expiry"), state.get("coupon_code"), rowid))
+            conn.commit()
+    except Exception:
+        logging.debug("Could not set subscription fields for new worker")
+    conn.close()
+    return worker_code
+
+
+def save_client_request_to_db(user_id, state, req_id=None):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    lat, lon = state.get("location", (None, None))
+    name = state.get("name")
+    phone = state.get("phone")
+    service = state.get("service")
+    if req_id:
+        cur.execute("UPDATE clients SET user_id=?, name=?, phone=?, service=?, lat=?, lon=?, created_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (user_id, name, phone, service, lat, lon, req_id))
+        conn.commit()
+        cid = req_id
+    else:
+        cur.execute("INSERT INTO clients (user_id, name, phone, service, lat, lon) VALUES (?,?,?,?,?,?)",
+                    (user_id, name, phone, service, lat, lon))
+        conn.commit()
+        cid = cur.lastrowid
+        # تحديث إحصاءات الاستخدام عند إنشاء طلب جديد
+        try:
+            increment_usage_on_request(user_id)
+        except Exception:
+            logging.exception("Failed to increment usage stats")
+    conn.close()
+    return cid
+
+
+def mark_user_seen(user_id):
+    """Return True if this is the first time we've seen this user (inserted), False otherwise."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM seen_users WHERE user_id = ?", (user_id,))
+        if cur.fetchone():
+            conn.close(); return False
+        cur.execute("INSERT INTO seen_users (user_id) VALUES (?)", (user_id,))
+        conn.commit(); conn.close(); return True
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return False
+
+def save_rating_to_db(worker_user_id, client_user_id, rating, comment=None):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO ratings (worker_user_id, client_user_id, rating, comment) VALUES (?,?,?,?)",
+                    (worker_user_id, client_user_id, int(rating), comment))
+        conn.commit()
+        # زيادة عداد التقييمات للعامل
+        try:
+            increment_worker_ratings(worker_user_id, by=1)
+        except Exception:
+            logging.exception("Failed to increment worker ratings counter")
+    finally:
+        conn.close()
+
+# ---------- Bot handlers ----------
+async def redeem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_states[user_id] = {"role": "redeem", "step": "code"}
+    await update.message.reply_text("أدخل كود الشحن (الكوبون) لتفعيله:")
+
+# New helper: redeem and apply coupon to a worker (target_worker_user_id)
+def redeem_coupon_for_worker(code_input, requesting_user_id, target_worker_user_id=None, desired_tier=None):
+    """Try to redeem coupon and apply subscription to target worker. Returns (ok:bool, msg:str)."""
+    if not code_input:
+        return False, "كود غير صالح."
+    raw = re.sub(r"[^\w\-]", "", code_input.strip().upper())
+    raw_nz = re.sub(r"^0+", "", raw)
+    candidates = []
+    for cand in (raw, raw_nz):
+        if cand:
+            candidates.append(cand)
+            if not cand.startswith("VIP-"):
+                candidates.append("VIP-" + cand)
+    seen = []
+    candidates = [c for c in candidates if c and (c not in seen and not seen.append(c))]
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        found = None
+        for c in candidates:
+            cur.execute("SELECT id, amount, used, code FROM coupons WHERE UPPER(code) = ?", (c.upper(),))
+            row = cur.fetchone()
+            if row:
+                found = row
+                break
+        if not found:
+            conn.close()
+            return False, "الكود غير موجود أو غير صالح."
+        cid, amount, used, actual_code = found
+        if used:
+            conn.close()
+            return False, "هذا الكود مُستخدم مسبقاً."
+
+        # Determine desired tier if not provided: default to code amount mapping
+        if desired_tier:
+            if desired_tier == "gold" and int(amount) != 100:
+                conn.close(); return False, "هذا الكود ليس مخصصًا للفئة الذهبية. استخدم كودًا بقيمة 100 د.ل."
+            if desired_tier == "silver" and int(amount) != 60:
+                conn.close(); return False, "هذا الكود ليس مخصصًا للفئة الفضية. استخدم كودًا بقيمة 60 د.ل."
+        else:
+            # infer
+            if int(amount) == 100:
+                desired_tier = "gold"
+            elif int(amount) == 60:
+                desired_tier = "silver"
+            else:
+                desired_tier = "custom"
+
+        if desired_tier == "gold":
+            level = 1; days = 32; tier_name = "ذهبي"
+        elif desired_tier == "silver":
+            level = 2; days = 30; tier_name = "فضي"
+        else:
+            level = 0; days = 30; tier_name = f"({amount})"
+
+        expiry = datetime.utcnow() + timedelta(days=days)
+        expiry_iso = expiry.isoformat()
+
+        # choose target worker
+        if not target_worker_user_id:
+            target_worker_user_id = requesting_user_id
+
+        # mark coupon used and update worker
+        try:
+            cur.execute("UPDATE coupons SET used=1, used_by_worker_user_id=?, used_at=? WHERE id=?", (target_worker_user_id, expiry_iso, cid))
+            cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE user_id = ?",
+                        (level, expiry_iso, actual_code, target_worker_user_id))
+            conn.commit()
+            conn.close()
+            return True, f"تم تفعيل الاشتراك للفئة {tier_name}. سينتهي الاشتراك بتاريخ {expiry_iso}."
+        except Exception:
+            conn.close()
+            logging.exception("Error while marking coupon used in redeem_coupon_for_worker")
+            return False, "حدث خطأ أثناء تفعيل الكود. حاول مرة أخرى أو تواصل مع الدعم."
+    except Exception:
+        logging.exception("redeem_coupon_for_worker failed")
+        return False, "حدث خطأ أثناء معالجة الكود."
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    user_states.pop(user_id, None)
+    await update.message.reply_text("مرحبًا بكم في بوت خدمتي", reply_markup=MAIN_KB)
+
+async def send_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id if update.effective_user else None
+    if not ADMIN_ID or uid != ADMIN_ID:
+        await update.message.reply_text("ليس لديك صلاحية الوصول لواجهة الإدارة.")
+        return
+    try:
+        subs = fetch_subscribers()
+        sub_count = len(subs)
+        conn = sqlite3.connect(DB_PATH); cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM workers"); workers_count = cur.fetchone()[0] or 0
+        from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+        from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
+        import sqlite3
+        import os
+        import logging
+        import re
+        from datetime import datetime, timedelta
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+        TOKEN = os.getenv("BOT_TOKEN") or ""
+        if not TOKEN:
+            logging.warning("BOT_TOKEN not set; khidmati.py will not start the bot without it.")
+        DATA_ENC_KEY = os.getenv("DATA_ENC_KEY") or ""
+        try:
+            ADMIN_ID = int(os.getenv("ADMIN_USER_ID", "0")) or 0
+        except Exception:
+            ADMIN_ID = 0
+
+        # Simple category -> services mapping
+        SERVICE_CATEGORIES = {
+            "🏠 صيانة منزلية": ["سباكة", "طلاء منازل", "تركيب الأثاث", "أرضيات"],
+            "🔌 الخدمات التقنية": ["تركيب الكاميرات", "فني انترنت", "كهربائي منازل"],
+            "📚 الخدمات التعليمية": ["📚 تمهيدي", "📚 اعدادي", "📚 ثانوي أو معهد", "📚 اكاديمي"],
+            "💈 حلاقتك في حوشك": [],
+        }
+
+        WORK_TYPES = []
+        for vals in SERVICE_CATEGORIES.values():
+            WORK_TYPES.extend(vals)
+
+        MAIN_MENU_LAYOUT = [["🛠️ الخدمات", "📝 التسجيل للحرفيين"], ["🔓 تفعيل الاشتراك", "📊حسابي"], ["📜 نبذة عنا", "📞 تواصل معنا"]]
+        MAIN_KB = ReplyKeyboardMarkup(MAIN_MENU_LAYOUT, resize_keyboard=True)
+
+        user_states = {}
+        DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
+
+        def init_db():
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS workers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE,
+                name TEXT,
+                phone TEXT,
+                work_type TEXT,
+                lat REAL,
+                lon REAL,
+                worker_code INTEGER,
+                subscription_level INTEGER DEFAULT 0,
+                subscription_expiry TEXT
+            )
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS clients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                name TEXT,
+                phone TEXT,
+                service TEXT,
+                lat REAL,
+                lon REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS coupons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT UNIQUE,
+                amount INTEGER,
+                used INTEGER DEFAULT 0,
+                used_at TEXT
+            )
+            """)
+            conn.commit(); conn.close()
+
+        def save_worker_to_db(user_id, state):
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM workers WHERE user_id = ?", (user_id,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("UPDATE workers SET name=?, phone=?, work_type=? WHERE user_id=?",
+                            (state.get("name"), state.get("phone"), state.get("work_type"), user_id))
+            else:
+                cur.execute("INSERT INTO workers (user_id, name, phone, work_type) VALUES (?,?,?,?)",
+                            (user_id, state.get("name"), state.get("phone"), state.get("work_type")))
+            conn.commit(); conn.close()
+
+        def fetch_worker_by_code(code):
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("SELECT id, user_id, name, phone, work_type FROM workers WHERE worker_code = ?", (code,))
+            r = cur.fetchone(); conn.close()
+            if not r:
+                return None
+            return {"id": r[0], "user_id": r[1], "name": r[2], "phone": r[3], "work_type": r[4]}
+
+        def redeem_coupon_for_worker(code_input, requesting_user_id, target_worker_user_id=None, desired_tier=None):
+            # Minimal safe implementation: look up coupon and mark used
+            if not code_input:
+                return False, "كود غير صالح."
+            c = code_input.strip().upper()
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("SELECT id, amount, used FROM coupons WHERE UPPER(code)=?", (c,))
+            row = cur.fetchone()
+            if not row:
+                conn.close(); return False, "الكود غير موجود أو غير صالح."
+            cid, amount, used = row
+            if used:
+                conn.close(); return False, "هذا الكود مستخدم من قبل."
+            cur.execute("UPDATE coupons SET used=1, used_at=CURRENT_TIMESTAMP WHERE id=?", (cid,))
+            conn.commit(); conn.close()
+            return True, "تم تفعيل الكود." 
+
+        async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            user_states.pop(update.effective_user.id, None)
+            await update.message.reply_text("مرحبًا بكم في بوت خدمتي", reply_markup=MAIN_KB)
+
+        async def redeem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            user_states[update.effective_user.id] = {"role": "redeem", "step": "code"}
+            await update.message.reply_text("أدخل كود الشحن (الكوبون) لتفعيله:")
+
+        async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            msg = update.message
+            if not msg or not msg.contact:
+                return
+            user_id = msg.from_user.id
+            state = user_states.get(user_id)
+            if not state:
+                await msg.reply_text("ابدأ من جديد بالضغط على /start.")
+                return
+            if state.get("role") == "worker" and state.get("step") == "phone":
+                state["phone"] = msg.contact.phone_number
+                state["step"] = "choose_sub"
+                save_worker_to_db(user_id, state)
+                await msg.reply_text("تم حفظ رقمك. شارك موقعك لاحقًا.")
+
+        async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            query = update.callback_query
+            if not query:
+                return
+            await query.answer()
+            data = query.data or ""
+            if data == "skip_sub":
+                uid = query.from_user.id
+                st = user_states.get(uid, {})
+                st["step"] = "location"
+                user_states[uid] = st
+                await query.edit_message_text("تم التخطي. الرجاء ارسال موقعك.")
+
+        async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            msg = update.message
+            if not msg:
+                return
+            user_id = msg.from_user.id
+            text = (msg.text or "").strip()
+            # Main menu buttons
+            if text in ("/start", "start", "مرحبا"):
+                await start(update, context); return
+            if text in ("🛠️ الخدمات", "الخدمات"):
+                cats = list(SERVICE_CATEGORIES.keys())
+                kb = ReplyKeyboardMarkup([[c] for c in cats], resize_keyboard=True)
+                user_states[user_id] = {"role": "browsing", "step": "categories"}
+                await msg.reply_text("اختر الفئة:", reply_markup=kb)
+                return
+            if text in SERVICE_CATEGORIES:
+                services = SERVICE_CATEGORIES.get(text) or []
+                if services:
+                    kb = ReplyKeyboardMarkup([[s] for s in services], resize_keyboard=True)
+                    user_states[user_id] = {"role": "browsing", "step": "services", "category": text}
+                    await msg.reply_text(f"اختر الخدمة من فئة {text}:", reply_markup=kb)
+                    return
+                else:
+                    # direct service category
+                    text = text
+            # client selects a service
+            if text in WORK_TYPES:
+                name = (update.effective_user.first_name or "")
+                state = {"role": "client", "service": text, "name": name}
+                user_states[user_id] = state
+                kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True)
+                await msg.reply_text(f"لقد اخترت: {text}\nالآن شارك موقعك:", reply_markup=kb)
+                return
+            # worker registration
+            if text in ("📝 التسجيل للحرفيين", "التسجيل للحرفيين"):
+                user_states[user_id] = {"role": "worker", "step": "name"}
+                await msg.reply_text("سجل كعامل - اكتب اسمك:")
+                return
+            st = user_states.get(user_id)
+            if st and st.get("role") == "worker":
+                step = st.get("step")
+                if step == "name":
+                    st["name"] = text; st["step"] = "work_type"
+                    cats = list(SERVICE_CATEGORIES.keys())
+                    kb = ReplyKeyboardMarkup([[c] for c in cats], resize_keyboard=True)
+                    await msg.reply_text("اختر الفئة/الخدمة:", reply_markup=kb)
+                    user_states[user_id] = st
+                    return
+                if step == "work_type":
+                    if text in SERVICE_CATEGORIES:
+                        services = SERVICE_CATEGORIES.get(text) or []
+                        if services:
+                            kb = ReplyKeyboardMarkup([[s] for s in services], resize_keyboard=True)
+                            st["step"] = "work_type"
+                            user_states[user_id] = st
+                            await msg.reply_text(f"اختر الخدمة من {text}:", reply_markup=kb)
+                            return
+                        else:
+                            st["work_type"] = text
+                            st["step"] = "phone"
+                            user_states[user_id] = st
+                            await msg.reply_text("ادخل رقم هاتفك أو شارك جهة الاتصال:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True))
+                            return
+                    if text in WORK_TYPES:
+                        st["work_type"] = text; st["step"] = "phone"
+                        user_states[user_id] = st
+                        await msg.reply_text("ادخل رقم هاتفك أو شارك جهة الاتصال:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True))
+                        return
+            # redeem flow
+            if st and st.get("role") == "redeem" and st.get("step") == "code":
+                code = text.strip()
+                ok, msg_text = redeem_coupon_for_worker(code, user_id)
+                await msg.reply_text(msg_text)
+                user_states.pop(user_id, None)
+                return
+            # default
+            await msg.reply_text("لم أفهم. استخدم الأزرار أو اكتب /start للعودة للقائمة.", reply_markup=MAIN_KB)
+
+        def main():
+            init_db()
+            if not TOKEN:
+                logging.info("BOT_TOKEN missing; exiting main without starting bot.")
+                return
+            app = Application.builder().token(TOKEN).build()
+            app.add_handler(CommandHandler("start", start))
+            app.add_handler(CommandHandler("redeem", redeem_cmd))
+            app.add_handler(CallbackQueryHandler(handle_callback))
+            app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
+            logging.info("Starting khidmati bot")
+            app.run_polling()
+
+        if __name__ == "__main__":
+            main()
+            state["step"] = "awaiting_coupon"
+            user_states[user_id] = state
+            try:
+                await query.edit_message_text(f"لقد اخترت الفئة: {'ذهبية' if tier=='gold' else 'فضية'}\\.\nأدخل الآن كود القسيمة المناسب لهذه الفئة:")
+            except Exception:
+                await query.message.reply_text("أدخل الآن كود القسيمة المناسب لهذه الفئة:")
+            return
+
+        # user chose subscription type during التسجيل
+        if data.startswith("pick_sub:"):
+            parts = data.split(":")
+            if len(parts) != 2:
+                await query.edit_message_text("خطأ في اختيار الفئة. حاول مرة أخرى.")
+                return
+            tier = parts[1]
+            state = user_states.get(user_id, {})
+            if state.get("role") != "worker":
+                await query.edit_message_text("هذه الخاصية متاحة فقط للعاملين أثناء التسجيل.")
+                return
+            state["desired_tier"] = tier
+            state["step"] = "await_coupon_code"
+            user_states[user_id] = state
+            try:
+                await query.edit_message_text(f"لقد اخترت الفئة: {'ذهبية' if tier=='gold' else 'فضية'}\\.\nأدخل الآن كود القسيمة المناسب لهذه الفئة:")
+            except Exception:
+                await query.message.reply_text("أدخل الآن كود القسيمة المناسب لهذه الفئة:")
+            return
+
+        # skip subscription for worker during registration: proceed to location
+        if data == "skip_sub":
+            state = user_states.get(user_id, {})
+            if state.get("role") != "worker":
+                try:
+                    await query.edit_message_text("هذه الخاصية متاحة فقط للعاملين أثناء التسجيل.")
+                except Exception:
+                    pass
+                return
+            state["step"] = "location"
+            user_states[user_id] = state
+            kb = make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])
+            try:
+                await query.edit_message_text("تم اختيار عدم الاشتراك الآن. الرجاء مشاركة موقعك لإكمال التسجيل.")
+            except Exception:
+                pass
+            try:
+                await query.message.reply_text("اضغط لإرسال موقعك:", reply_markup=kb)
+            except Exception:
+                logging.debug("Failed to send location prompt after skip_sub callback")
+            return
+
+        # ... other callback handling continues ...
+    except Exception:
+        logging.exception("Error in handle_callback")
+        try:
+            if update.callback_query:
+                await update.callback_query.edit_message_text("حدث خطأ أثناء المعالجة.")
+        except Exception:
+            pass
+
+# Remaining unchanged code follows (identical to vscode-local copy)...
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
+import math
+import sqlite3
+import os
+import logging
+import asyncio
+import sys
+import re
+from datetime import datetime, timedelta
+import random
+import string
+import time
+import traceback
+from dotenv import load_dotenv
+import requests
+import psutil  # optional: for robust PID check (install psutil) or use os
+
+load_dotenv()  # سيحمّل القيم من .env في مجلد المشروع
+
+# إسكات تحذيرات Deprecation العامة المتعلقة بـ asyncio.WindowsSelectorEventLoopPolicy
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise SystemExit("BOT_TOKEN missing")
+DATA_ENC_KEY = os.getenv("DATA_ENC_KEY")
+if not DATA_ENC_KEY:
+    raise SystemExit("DATA_ENC_KEY missing")
+try:
+    ADMIN_ID = int(os.getenv("ADMIN_USER_ID", "0")) or 0
+except Exception:
+    ADMIN_ID = 0
+
+WORK_TYPES = [
+    "سباكة", "تركيب الكاميرات", "طلاء منازل", "كهربائي منازل", "شاحنات مياه صالحة للشرب",
+    "عاملات نظافة وأشغال عامة", "تنظيف السجاد و المفروشات في المنزل", "فني انترنت", "توصيل رجالي", "توصيل نسائي", "سيارات الاسعاف",
+    "تصوير مناسبات",
+    "الخدمات التعليمية", "أخرى"
+]
+
+SERVICE_KEYS = {"الخدمات", "🛠️ الخدمات", "الخدمة", "خدمات", "عرض الخدمات", "سيرفز", "سرفز"}
+CONTACT_KEYS = {"تواصل معنا", "اتصل بنا", "تواصل", "اتصل", "📞 تواصل معنا"}
+ABOUT_KEYS = {"نبذة عنا", "📜 نبذة عنا", "📜نبذة عنا", "نبذة", "عن التطبيق", "من نحن"}
+
+# Main persistent keyboard used across client interactions. Use this single instance
+# so all entry points present the same buttons and avoid disappearing rows.
+# Keep MAIN_MENU_LAYOUT consistent with the earlier, canonical definition above.
+# If the earlier block exists it will be reused; otherwise fall back to a sensible default.
+try:
+    # reuse the first definition of MAIN_MENU_LAYOUT (preferred)
+    MAIN_MENU_LAYOUT = MAIN_MENU_LAYOUT
+except NameError:
+    MAIN_MENU_LAYOUT = [["🛠️ الخدمات", "📝 التسجيل للحرفيين"], ["🔓 تفعيل الاشتراك", "📊حسابي"], ["📜 نبذة عنا", "📞 تواصل معنا"]]
+MAIN_KB = ReplyKeyboardMarkup(MAIN_MENU_LAYOUT, resize_keyboard=True)
+
+user_states = {}
+workers = {}
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
+LOCKFILE = os.path.join(os.path.dirname(__file__), "bot.lock")
+
+# Windows event loop policy (suppress DeprecationWarning when calling)
+import sys, asyncio
+import warnings
+# فقط اضبط سياسة الحلقة على ويندوز إذا كانت نسخة بايثون أقل من 3.16
+if sys.platform.startswith("win"):
+    try:
+        if sys.version_info < (3, 16) and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*WindowsSelectorEventLoopPolicy.*")
+                warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*set_event_loop_policy.*")
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except Exception:
+        pass
+
+# ---------- DB init ----------
+def add_column_if_not_exists(conn, table, column_def):
+    """column_def example: 'appearance_count INTEGER DEFAULT 0'"""
+    colname = column_def.split()[0]
+    cur = conn.cursor()
+    cur.execute(f"PRAGMA table_info({table})")
+    cols = [r[1] for r in cur.fetchall()]
+    if colname not in cols:
+        cur.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
+        conn.commit()
+
+def init_db():
+    try:
+        logging.info("Init DB -> %s", DB_PATH)
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS workers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER UNIQUE,
+            name TEXT,
+            phone TEXT,
+            work_type TEXT,
+            lat REAL,
+            lon REAL,
+            worker_code INTEGER,
+            coupon_code TEXT,
+            subscription_level INTEGER DEFAULT 0,
+            subscription_expiry TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            name TEXT,
+            phone TEXT,
+            service TEXT,
+            lat REAL,
+            lon REAL,
+            assigned_worker_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS coupons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE,
+            amount INTEGER,
+            used INTEGER DEFAULT 0,
+            used_by_worker_user_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            used_at TIMESTAMP
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS ratings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_user_id INTEGER,
+            client_user_id INTEGER,
+            rating INTEGER,
+            comment TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
+        # usage_stats table to track total users/requests
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS usage_stats (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            total_users INTEGER DEFAULT 0,
+            total_requests INTEGER DEFAULT 0
+        )
+        """)
+        cur.execute("INSERT OR IGNORE INTO usage_stats (id, total_users, total_requests) VALUES (1,0,0)")
+
+        # table to track if we've greeted a user before (so first-time users get the full menu)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS seen_users (
+            user_id INTEGER PRIMARY KEY,
+            first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+
+        conn.commit()
+
+        # Ensure counter columns exist on workers (safe migration)
+        try:
+            add_column_if_not_exists(conn, "workers", "appearance_count INTEGER DEFAULT 0")
+            add_column_if_not_exists(conn, "workers", "ratings_received INTEGER DEFAULT 0")
+            add_column_if_not_exists(conn, "workers", "selected_count INTEGER DEFAULT 0")
+            # new column to record education service subtype for workers who register under educational services
+            add_column_if_not_exists(conn, "workers", "education_type TEXT")
+        except Exception:
+            logging.exception("Failed adding counter columns")
+
+        conn.commit()
+        conn.close()
+        logging.info("Database initialized / migrated successfully.")
+    except Exception:
+        logging.exception("init_db error")
+
+# ---------- Counters / stats helpers ----------
+def increment_worker_appearance(worker_user_id, by=1):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE workers SET appearance_count = COALESCE(appearance_count,0) + ? WHERE user_id = ?", (by, worker_user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def increment_worker_selected(worker_user_id, by=1):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE workers SET selected_count = COALESCE(selected_count,0) + ? WHERE user_id = ?", (by, worker_user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def increment_worker_ratings(worker_user_id, by=1):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE workers SET ratings_received = COALESCE(ratings_received,0) + ? WHERE user_id = ?", (by, worker_user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def increment_usage_on_request(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        # اذا هذه أول مرة يطلب فيها هذا المستخدم زِدّ total_users
+        cur.execute("SELECT COUNT(*) FROM clients WHERE user_id = ?", (user_id,))
+        prior = cur.fetchone()[0] or 0
+        if prior == 0:
+            cur.execute("UPDATE usage_stats SET total_users = COALESCE(total_users,0) + 1 WHERE id = 1")
+        # دوّن الطلب كـ total_requests
+        cur.execute("UPDATE usage_stats SET total_requests = COALESCE(total_requests,0) + 1 WHERE id = 1")
+        conn.commit()
+    finally:
+        conn.close()
+
+# ---------- DB helpers (single copy) ----------
+def save_worker_to_db(user_id, state):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    lat, lon = state.get("location", (None, None))
+    cur.execute("SELECT id, worker_code FROM workers WHERE user_id = ?", (user_id,))
+    existing = cur.fetchone()
+    if existing:
+        row_id, worker_code = existing
+        cur.execute("UPDATE workers SET name = ?, phone = ?, work_type = ?, lat = ?, lon = ?, education_type = ? WHERE user_id = ?",
+                    (state.get("name"), state.get("phone"), state.get("work_type"), lat, lon, state.get("edu_type"), user_id))
+        # apply subscription fields if present in state
+        if state.get("subscription_level") or state.get("subscription_expiry") or state.get("coupon_code"):
+            try:
+                cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE user_id = ?",
+                            (state.get("subscription_level"), state.get("subscription_expiry"), state.get("coupon_code"), user_id))
+            except Exception:
+                logging.debug("Could not update subscription fields for existing worker")
+        if not worker_code:
+            worker_code = 2000 + row_id
+            try:
+                cur.execute("UPDATE workers SET worker_code = ? WHERE id = ?", (worker_code, row_id))
+            except Exception:
+                pass
+        conn.commit()
+        conn.close()
+        return worker_code
+
+    cur.execute("INSERT INTO workers (user_id, name, phone, work_type, lat, lon, education_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (user_id, state.get("name"), state.get("phone"), state.get("work_type"), lat, lon, state.get("edu_type")))
+    conn.commit()
+    rowid = cur.lastrowid
+    worker_code = 2000 + rowid
+    try:
+        cur.execute("UPDATE workers SET worker_code = ? WHERE id = ?", (worker_code, rowid))
+        conn.commit()
+    except Exception:
+        pass
+    # بعد الإدراج، طبق حقول الاشتراك إن وُجدت
+    try:
+        if state.get("subscription_level") or state.get("subscription_expiry") or state.get("coupon_code"):
+            cur.execute("UPDATE workers SET subscription_level = ?, subscription_expiry = ?, coupon_code = ? WHERE id = ?",
+                        (state.get("subscription_level"), state.get("subscription_expiry"), state.get("coupon_code"), rowid))
+            conn.commit()
+    except Exception:
+        logging.debug("Could not set subscription fields for new worker")
+    conn.close()
+    return worker_code
+
+def save_client_request_to_db(user_id, state, req_id=None):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    lat, lon = state.get("location", (None, None))
+    name = state.get("name")
+    phone = state.get("phone")
+    service = state.get("service")
+    if req_id:
+        cur.execute("UPDATE clients SET user_id=?, name=?, phone=?, service=?, lat=?, lon=?, created_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (user_id, name, phone, service, lat, lon, req_id))
+        conn.commit()
+        cid = req_id
+    else:
+        cur.execute("INSERT INTO clients (user_id, name, phone, service, lat, lon) VALUES (?,?,?,?,?,?)",
+                    (user_id, name, phone, service, lat, lon))
+        conn.commit()
+        cid = cur.lastrowid
+        # تحديث إحصاءات الاستخدام عند إنشاء طلب جديد
+        try:
+            increment_usage_on_request(user_id)
+        except Exception:
+            logging.exception("Failed to increment usage stats")
+    conn.close()
+    return cid
+
+
+def mark_user_seen(user_id):
+    """Return True if this is the first time we've seen this user (inserted), False otherwise."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM seen_users WHERE user_id = ?", (user_id,))
+        if cur.fetchone():
+            conn.close(); return False
+        cur.execute("INSERT INTO seen_users (user_id) VALUES (?)", (user_id,))
+        conn.commit(); conn.close(); return True
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return False
+
+def save_rating_to_db(worker_user_id, client_user_id, rating, comment=None):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO ratings (worker_user_id, client_user_id, rating, comment) VALUES (?,?,?,?)",
+                    (worker_user_id, client_user_id, int(rating), comment))
+        conn.commit()
+        # زيادة عداد التقييمات للعامل
+        try:
+            increment_worker_ratings(worker_user_id, by=1)
+        except Exception:
+            logging.exception("Failed to increment worker ratings counter")
+    finally:
+        conn.close()
+
+# ---------- Bot handlers ----------
+async def redeem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_states[user_id] = {"role": "redeem", "step": "code"}
+    await update.message.reply_text("أدخل كود الشحن (الكوبون) لتفعيله:")
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    user_states.pop(user_id, None)
+    await update.message.reply_text("مرحبًا بكم في بوت خدمتي", reply_markup=MAIN_KB)
+
+async def send_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id if update.effective_user else None
+    if not ADMIN_ID or uid != ADMIN_ID:
+        await update.message.reply_text("ليس لديك صلاحية الوصول لواجهة الإدارة.")
+        return
+    try:
+        subs = fetch_subscribers()
+        sub_count = len(subs)
+        conn = sqlite3.connect(DB_PATH); cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM workers"); workers_count = cur.fetchone()[0] or 0
+        cur.execute("SELECT id, name, phone, work_type, worker_code, subscription_level, subscription_expiry FROM workers ORDER BY id DESC LIMIT 1000"); wrows = cur.fetchall()
+        conn.close()
+    except Exception:
+        logging.exception("send_admin_panel failed")
+        await update.message.reply_text("فشل في جلب بيانات لوحة الإدارة.")
+        return
+
+    header = f"لوحة الإدارة\nالمشتركون: {sub_count}\nالعمال: {workers_count}\n\n"
+    sub_lines = [f"{s['id']} | {s['name'] or '-'} | {s['phone'] or '-'}" for s in subs]
+    subs_text = "المشتركون (آخر):\n" + ("\n".join(sub_lines) if sub_lines else "(لا سجلات)")
+    w_lines = [f"{wid} | {name or '-'} | {phone or '-'} | {wtype or '-'} | code:{wcode or '-'} | lvl:{level or 0} | exp:{expiry or '-'}" for wid, name, phone, wtype, wcode, level, expiry in wrows]
+    workers_text = "العمال (آخر):\n" + ("\n".join(w_lines) if w_lines else "(لا سجلات)")
+    OUT_LIMIT = 3500
+    await update.message.reply_text(header)
+    if len(subs_text) > OUT_LIMIT:
+        from io import BytesIO
+        bio = BytesIO(subs_text.encode("utf-8")); bio.name = "subscribers.txt"
+        await update.message.reply_document(bio)
+    else:
+        await update.message.reply_text(subs_text)
+    if len(workers_text) > OUT_LIMIT:
+        from io import BytesIO
+        bio = BytesIO(workers_text.encode("utf-8")); bio.name = "workers.txt"
+        await update.message.reply_document(bio)
+    else:
+        await update.message.reply_text(workers_text)
+
+async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user_id = update.message.from_user.id if update.message and update.message.from_user else None
+        # greet first-time users with the full main keyboard so anyone who opens the bot
+        # immediately sees the available options.
+        try:
+            if user_id:
+                if mark_user_seen(user_id):
+                    try:
+                        await update.message.reply_text("مرحبًا! إليك القائمة الرئيسية:", reply_markup=MAIN_KB)
+                    except Exception:
+                        logging.debug("Could not send first-time welcome keyboard to user %s", user_id)
+        except Exception:
+            logging.debug("mark_user_seen failed for user %s", user_id)
+        text_orig = ""
+        contact_obj = None
+        if update.message:
+            contact_obj = getattr(update.message, "contact", None)
+            if contact_obj and getattr(contact_obj, "phone_number", None):
+                text_orig = contact_obj.phone_number
+            elif update.message.text:
+                text_orig = update.message.text
+        logging.info("RAW_MSG repr: %r ; contact=%r ; from=%s", text_orig, contact_obj, user_id)
+        text = text_orig.strip()
+        text_l = text.lower()
+        # Temporary debug logging to capture button presses and current state
+        try:
+            logging.info("BUTTON_DEBUG user=%s text=%r state=%r", user_id, text, user_states.get(user_id))
+        except Exception:
+            logging.debug("Failed to log BUTTON_DEBUG")
+        # Self-stat shortcut: if a worker sends '1' show their own stats (only for the same user_id)
+        if text.strip() == "1":
+            try:
+                w = fetch_worker_by_userid(user_id)
+                if not w:
+                    await update.message.reply_text("أنت لست مسجلاً كعامل في النظام.")
+                    return
+                # fetch rating count and average
+                cnt, avg = fetch_rating_stats(user_id)
+                appearance = w.get("appearance_count", 0) or 0
+                selected = w.get("selected_count", 0) or 0
+                msg = (
+                    f"إحصاءات حسابك:\n"
+                    f"متوسط التقييم: {avg:.2f} (من {cnt} تقييم)\n"
+                    f"عدد مرات الظهور: {appearance}\n"
+                    f"عدد مرات الاختيار: {selected}"
+                )
+                await update.message.reply_text(msg)
+            except Exception:
+                logging.exception("self-stats (1) handler failed")
+            return
+        # admin shortcuts
+        if "conf" in text_l:
+            await send_admin_panel(update, context); return
+        # send-to-all shortcut: when admin types `sta` anywhere, start broadcast flow
+        if "sta" in text_l:
+            uid = update.effective_user.id if update.effective_user else None
+            if not ADMIN_ID or uid != ADMIN_ID:
+                await update.message.reply_text("ليس لديك صلاحية تنفيذ هذا الأمر.")
+                return
+            user_states[uid] = {"role": "broadcast", "step": "compose"}
+            await update.message.reply_text("أرسل النص الذي تريد إرساله لجميع الحرفيين أو قم بالرد على رسالة موجودة لإعادة توجيهها (forward) إليهم:")
+            return
+        if text_l in CONTACT_KEYS:
+            phone_local = "0916564000"; phone_international = "+218916564000"; wa_number = "218916564000"
+            try:
+                await update.message.reply_contact(phone_number=phone_international, first_name="فريق الدعم")
+            except Exception:
+                logging.debug("reply_contact failed")
+            wa_btn = InlineKeyboardMarkup([[InlineKeyboardButton("مراسلتنا عبر واتساب", url=f"https://wa.me/{wa_number}")]] )
+            # include phone number with phone emoji in the reply
+            await update.message.reply_text(f"📞 للتواصل الهاتفي: {phone_local}\n\nيمكنك أيضًا مراسلتنا عبر واتساب:", reply_markup=wa_btn)
+            return
+        # حسابي flow: worker enters their code to view account stats
+        # be permissive: match any message containing the word 'حسابي' (with or without emoji/space)
+        try:
+            if (isinstance(text, str) and "حسابي" in text) or (isinstance(text_l, str) and "حسابي" in text_l):
+                user_states[user_id] = {"role": "view_my_account", "step": "enter_code"}
+                await update.message.reply_text("أدخل رقم المعرف (code) الخاص بك لعرض إحصاءات حسابك:", reply_markup=ReplyKeyboardRemove())
+                return
+        except Exception:
+            # fallback to previous explicit matches if something unexpected happens
+            if text in ("حسابي", "حسابي📊", "حسابي 📊"):
+                user_states[user_id] = {"role": "view_my_account", "step": "enter_code"}
+                await update.message.reply_text("أدخل رقم المعرف (code) الخاص بك لعرض إحصاءات حسابك:", reply_markup=ReplyKeyboardRemove())
+                return
+        if text_l in ABOUT_KEYS:
+            about_text = (
+                "بوت خدمتي | تأسس عام 2025\n\n"
+                "نحن بوت تيليجرام يهدف إلى تسهيل طلب الخدمات بين العملاء والحرفيين.\n"
+                "كل ما عليك هو اختيار الخدمة المناسبة ثم إرسال موقعك، وسيعرض لك البوت أقرب حرفي مع جميع بيانات التواصل.\n\n"
+                "✅ الخدمة مجانية تمامًا للعملاء\n"
+                "💼 واشتراك رمزي للحرفيين\n\n"
+                "لأي استفسار أو دعم، لا تتردد في التواصل معنا 💬"
+            )
+            await update.message.reply_text(about_text, reply_markup=ReplyKeyboardRemove())
+            await update.message.reply_text("الرجوع إلى القائمة الرئيسية:", reply_markup=MAIN_KB)
+            return
+
+        # If user types "التسجيل للعملاء" inform them registration removed
+        if text_l == "التجيل للعملاء":
+            name = None
+            if update.effective_user:
+                fn = update.effective_user.first_name or ""; ln = update.effective_user.last_name or ""; name = (fn + " " + ln).strip() or None
+            contact = getattr(update.message, "contact", None)
+            phone = contact.phone_number if contact and getattr(contact, "phone_number", None) else None
+            user_states[user_id] = {"role": "subscriber", "step": ("location" if phone else "phone"), "name": name, "phone": phone}
+            if phone:
+                kb = make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])
+                await update.message.reply_text(f"تم استخدام اسم ملفك الشخصي: {name or 'غير متوفر'}\nالآن اضغط لإرسال موقعك:", reply_markup=kb)
+            else:
+                kb = make_reply_kb([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]])
+                await update.message.reply_text(f"سيُستخدم اسم ملفك الشخصي: {name or 'غير متوفر'}\nالرجاء مشاركة رقم هاتفك بالزر أدناه:", reply_markup=kb)
+            return
+        if text_l in ("التسجيل للحرفيين", "📝 التسجيل للحرفيين"):
+            user_states[user_id] = {"role": "worker", "step": "name"}
+            await update.message.reply_text("سجل كعامل - يرجى إدخال اسمك:")
+            return
+
+        # Activation flow entrance (button in main menu)
+        # allow emoji or plain text variants by removing leading non-Arabic chars
+        cleaned_label = re.sub(r"^[^\w\u0600-\u06FF]*", "", text).strip()
+        if cleaned_label == "تفعيل الاشتراك" or "تفعيل" in text_l:
+            user_states[user_id] = {"role": "activate_subscription", "step": "enter_worker_code"}
+            await update.message.reply_text("أدخل رقم المعرف الخاص بك (worker code) لتفعيل أو تجديد اشتراكك:")
+            return
+
+        if text_l in SERVICE_KEYS:
+            # show top-level categories
+            cats = list(SERVICE_CATEGORIES.keys())
+            kb = make_reply_kb([[c] for c in cats])
+            # record browsing state so back button can return to previous menu
+            user_states[user_id] = {"role": "browsing", "step": "categories"}
+            await update.message.reply_text("اختر الفئة التي تريد تصفح خدماتها:", reply_markup=kb)
+            return
+        # If user selected a category name, either show its services or treat the
+        # category as a direct service (when its services list is empty). This
+        # enables categories like the haircut section to immediately start the
+        # usual client/worker flow.
+        if text in SERVICE_CATEGORIES:
+            services = SERVICE_CATEGORIES.get(text) or []
+            if services:
+                kb_rows = [[s] for s in services]
+                kb = make_reply_kb(kb_rows)
+                # remember which category we're browsing
+                user_states[user_id] = {"role": "browsing", "step": "services", "category": text}
+                await update.message.reply_text(f"اختر الخدمة من فئة: {text}", reply_markup=kb)
+                return
+            else:
+                # map empty-category to a canonical service label so the
+                # following `if text in WORK_TYPES` block will handle it like a
+                # normal service selection. Keep emojis-first labels.
+                category_to_service = {
+                    "💈 حلاقتك في حوشك": "💈 حلاقتك في حوشك",
+                    "📚 الخدمات التعليمية": "📚 الخدمات التعليمية",
+                }
+                mapped = category_to_service.get(text)
+                if mapped:
+                    # update text so execution continues to the service branch
+                    text = mapped
+                    # since this category maps directly to a service (empty
+                    # sub-list), set browsing state to 'services' so the
+                    # downstream handler treats this as a service selection
+                    # coming from a category and proceeds to the client flow.
+                    user_states[user_id] = {"role": "browsing", "step": "services", "category": mapped}
+                else:
+                    kb = make_reply_kb([["الرجوع"]])
+                    await update.message.reply_text("الرجوع", reply_markup=kb)
+                    return
+        # If user pressed a generic back/return button, try to return to the
+        # previous menu based on the stored browsing state. Fall back to main
+        # menu if no previous state is available.
+        if text in ("الرجوع", "عودة", "عودة للخدمات", "الرجوع للخدمات"):
+            prev = user_states.get(user_id)
+            if prev:
+                # browsing flow: if we were in services list go back to categories
+                if prev.get("role") == "browsing":
+                    if prev.get("step") == "services":
+                        cats = list(SERVICE_CATEGORIES.keys())
+                        kb = make_reply_kb([[c] for c in cats])
+                        user_states[user_id] = {"role": "browsing", "step": "categories"}
+                        await update.message.reply_text("العودة إلى فئات الخدمات:", reply_markup=kb)
+                        return
+                    if prev.get("step") == "categories":
+                        # go back to main menu
+                        user_states.pop(user_id, None)
+                        await update.message.reply_text("الرجوع إلى القائمة الرئيسية:", reply_markup=MAIN_KB)
+                        return
+                # if user was mid-flow (client/worker/subscriber), try a conservative
+                # step-back: for client phone -> go back to service selection
+                if prev.get("role") == "client":
+                    # show categories again for convenience
+                    cats = list(SERVICE_CATEGORIES.keys())
+                    kb = make_reply_kb([[c] for c in cats])
+                    user_states[user_id] = {"role": "browsing", "step": "categories"}
+                    await update.message.reply_text("تم الرجوع. اختر الخدمة من جديد:", reply_markup=kb)
+                    return
+            # default: show main menu
+            await update.message.reply_text("الرجوع إلى القائمة الرئيسية:", reply_markup=MAIN_KB)
+            return
+        # If user selected a work/service type: allow selection both when the
+        # user is not in any state (direct selection) or when they're browsing
+        # services (from a category).
+        curr_state = user_states.get(user_id)
+        if text in WORK_TYPES and (user_id not in user_states or (curr_state and curr_state.get("role") == "browsing" and curr_state.get("step") == "services")):
+            name = None
+            if update.effective_user:
+                fn = update.effective_user.first_name or ""; ln = update.effective_user.last_name or ""; name = (fn + " " + ln).strip() or None
+            contact = getattr(update.message, "contact", None)
+            phone = contact.phone_number if contact and getattr(contact, "phone_number", None) else None
+            state = {"role": "client", "service": text, "name": name, "phone": phone}
+            # clear browsing state since we're now in client request flow
+            if curr_state and curr_state.get("role") == "browsing":
+                user_states.pop(user_id, None)
+            # If client selected an education subtype (one of the sub-buttons),
+            # treat it as a normal service selection but record the requested
+            # education division in state['edu_type'] so fetch_workers_by_service
+            # can filter appropriately later.
+            edu_subtypes = {"📚 اعدادي", "📚 تمهيدي", "📚 اكاديمي", "📚 ثانوي أو معهد", "اعدادي", "تمهيدي", "اكاديمي", "ثانوي او معهد"}
+            if text in edu_subtypes:
+                # normalize by removing leading non-Arabic/letter chars (emoji)
+                cleaned = re.sub(r"^[^\w\u0600-\u06FF]*", "", text).strip()
+                state["edu_type"] = cleaned
+                # proceed to the normal phone/location prompt below (no early return)
+            if phone:
+                state["step"] = "location"; user_states[user_id] = state
+                kb = make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])
+                await update.message.reply_text(f"لقد اخترت: {text}\nالاسم المستخدم: {name or 'غير متوفر'}\nالآن شارك موقعك:", reply_markup=kb)
+            else:
+                state["step"] = "phone"; user_states[user_id] = state
+                kb = make_reply_kb([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]])
+                await update.message.reply_text(f"لقد اخترت: {text}\nسيُستخدم اسم ملفك الشخصي: {name or 'غير متوفر'}\nالرجاء مشاركة رقم هاتفك بالزر أدناه:", reply_markup=kb)
+            return
+        if user_id in user_states:
+            state = user_states[user_id]
+            # broadcast flow (admin)
+            if state.get("role") == "broadcast":
+                if state.get("step") == "compose":
+                    ids = fetch_all_workers_user_ids()
+                    if not ids:
+                        await update.message.reply_text("لا يوجد حرفيين مسجلين لإرسال الرسالة.")
+                        user_states.pop(user_id, None)
+                        return
+
+                    sent = 0; failed = 0
+                    # If admin replied to an existing message, forward that original message to workers
+                    orig = update.message.reply_to_message if update.message and getattr(update.message, "reply_to_message", None) else None
+                    # prefix/header that will be visible to recipients
+                    header_label = "رسالة من خدمتي ليبيا:"
+                    if orig:
+                        # Use copy_message instead of forward_message so the recipients do NOT see the original sender details
+                        # send in batches to avoid hitting Telegram rate limits
+                        for i in range(0, len(ids), BROADCAST_BATCH_SIZE):
+                            batch = ids[i:i+BROADCAST_BATCH_SIZE]
+                            tasks = []
+                            for wid in batch:
+                                async def do_copy(target=wid):
+                                    nonlocal sent, failed
+                                    try:
+                                        await context.bot.send_message(target, header_label)
+                                        await context.bot.copy_message(chat_id=target, from_chat_id=orig.chat_id, message_id=orig.message_id)
+                                        sent += 1
+                                    except Exception:
+                                        failed += 1
+                                        logging.debug("Failed copying broadcast to %s", target)
+                                tasks.append(asyncio.create_task(do_copy()))
+                            # wait for batch to finish
+                            if tasks:
+                                await asyncio.gather(*tasks)
+                            # delay between batches
+                            await asyncio.sleep(BROADCAST_BATCH_DELAY)
+                        await update.message.reply_text(f"تمت إرسال نسخة من الرسالة إلى {sent} حرفي(ـًا). فشل الإرسال إلى {failed}.")
+                        user_states.pop(user_id, None)
+                        return
+
+                    # Otherwise send the typed text as a private message to each worker
+                    text_to_send = text_orig or ""
+                    if not text_to_send:
+                        await update.message.reply_text("النص فارغ. الرجاء إدخال رسالة صحيحة أو الرد على رسالة لإعادة توجيهها.")
+                        return
+                    # send text message with header combined
+                    combined = f"رسالة من خدمتي ليبيا:\n\n{text_to_send}"
+                    # send in batches to avoid rate limits
+                    for i in range(0, len(ids), BROADCAST_BATCH_SIZE):
+                        batch = ids[i:i+BROADCAST_BATCH_SIZE]
+                        tasks = []
+                        for wid in batch:
+                            async def do_send(target=wid, text=combined):
+                                nonlocal sent, failed
+                                try:
+                                    await context.bot.send_message(target, text)
+                                    sent += 1
+                                except Exception:
+                                    failed += 1
+                                    logging.debug("Failed sending broadcast to %s", target)
+                            tasks.append(asyncio.create_task(do_send()))
+                        if tasks:
+                            await asyncio.gather(*tasks)
+                        await asyncio.sleep(BROADCAST_BATCH_DELAY)
+                    await update.message.reply_text(f"تم إرسال الرسالة إلى {sent} حرفي(ـًا). فشل الإرسال إلى {failed}.")
+                    user_states.pop(user_id, None)
+                    return
+            # Activation state handling
+            if state.get("role") == "activate_subscription":
+                if state.get("step") == "enter_worker_code":
+                    if not text.isdigit():
+                        await update.message.reply_text("رقم المعرف يجب أن يكون رقماً. أدخل رقم المعرف الخاص بك (مثل 2001):")
+                        return
+                    w = fetch_worker_by_code(int(text))
+                    if not w:
+                        await update.message.reply_text("لم يتم العثور على عامل بهذا الرقم. تأكد من رقم المعرف وحاول مرة أخرى.")
+                        return
+                    # store target worker and ask to pick tier
+                    state["target_user_id"] = w["user_id"]
+                    state["step"] = "awaiting_tier_choice"
+                    user_states[user_id] = state
+                    sub_kb = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("الفئة الذهبية — 100 د.ل", callback_data=f"pick_activate:gold:{w['user_id']}")],
+                        [InlineKeyboardButton("الفئة الفضية — 60 د.ل", callback_data=f"pick_activate:silver:{w['user_id']}")]
+                    ])
+                    await update.message.reply_text(f"تم العثور على العامل: {w.get('name') or '-'}\nاختر الفئة المطلوبة:", reply_markup=sub_kb)
+                    return
+                if state.get("step") == "awaiting_coupon":
+                    code = text.strip()
+                    ok, msg = redeem_coupon_for_worker(code, user_id, target_worker_user_id=state.get("target_user_id"), desired_tier=state.get("desired_tier"))
+                    await update.message.reply_text(msg)
+                    if ok:
+                        # notify the target worker (best-effort)
+                        try:
+                            target_uid = state.get("target_user_id")
+                            if target_uid:
+                                try:
+                                    await context.bot.send_message(target_uid, f"🎉 تم تفعيل أو تجديد اشتراكك:\n{msg}")
+                                except Exception:
+                                    logging.debug("Could not notify worker %s about coupon activation", target_uid)
+                        except Exception:
+                            logging.exception("Error while notifying worker after coupon activation")
+                        user_states.pop(user_id, None)
+                    return
+            # subscriber flow
+            if state.get("role") == "subscriber":
+                if state.get("step") == "name":
+                    state["name"] = text; state["step"] = "phone"
+                    await update.message.reply_text("يرجى إدخال رقم هاتفك أو مشاركة جهة الاتصال:"); return
+                if state.get("step") == "phone":
+                    if not is_valid_phone(text):
+                        await update.message.reply_text("رقم الهاتف غير صالح. ارسله بصيغة 091xxxxxxx أو 9xxxxxxx أو +2189xxxxxxx."); return
+                    state["phone"] = normalize_phone(text); state["step"] = "location"
+                    kb = make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])
+                    await update.message.reply_text("الآن اضغط 'إرسال الموقع' لمشاركة موقعك:", reply_markup=kb); return
+            # client flow
+            if state.get("role") == "client":
+                if state.get("step") == "awaiting_request_id":
+                    if text.isdigit():
+                        req = fetch_client_request_by_id(int(text))
+                        if req:
+                            state["name"] = req.get("name"); state["phone"] = req.get("phone")
+                            state["step"] = "location" if state.get("phone") else "phone"
+                            await update.message.reply_text("تم استرجاع بيانات الطلب. أرسل موقعك أو ادخل هاتفك:", reply_markup=make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])); return
+                    await update.message.reply_text("رمز الطلب غير صحيح. اعد المحاولة أو اكتب اسمك."); state["step"] = "name"; return
+                if state.get("step") == "name":
+                    if text.isdigit():
+                        sub = fetch_subscriber_by_id(int(text))
+                        if sub:
+                            state["name"] = sub["name"]; state["phone"] = sub.get("phone"); state["step"] = "location" if state.get("phone") else "phone"
+                            await update.message.reply_text("تم استرجاع بيانات المشترك. أرسل موقعك أو أدخل هاتفك:", reply_markup=make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])); return
+                        req = fetch_client_request_by_id(int(text))
+                        if req:
+                            state["request_id"] = req["id"]; state["name"] = req.get("name"); state["phone"] = req.get("phone"); state["step"] = "location" if state.get("phone") else "phone"
+                            await update.message.reply_text("تم استرجاع بيانات الطلب. أرسل موقعك أو ادخل هاتفك:", reply_markup=make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])); return
+                    state["name"] = text; state["step"] = "phone"; await update.message.reply_text("يرجى إدخال رقم هاتفك أو مشاركة جهة الاتصال:"); return
+                if state.get("step") == "phone":
+                    if not is_valid_phone(text):
+                        await update.message.reply_text("رقم الهاتف غير صالح. ارسله بصيغة 091xxxxxxx أو +2189xxxxxxx."); return
+                    state["phone"] = normalize_phone(text); state["step"] = "location"
+                    await update.message.reply_text("الآن اضغط 'إرسال الموقع' لمشاركة موقعك:", reply_markup=make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])); return
+                if state.get("step") == "edu_choice":
+                    # client chose which teaching division they want
+                    state["edu_type"] = text
+                    # after selecting edu_type proceed to phone/location as usual
+                    if state.get("phone"):
+                        state["step"] = "location"
+                        kb = make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])
+                        await update.message.reply_text(f"لقد اخترت: {state.get('edu_type')}\nالآن شارك موقعك:", reply_markup=kb)
+                    else:
+                        state["step"] = "phone"
+                        kb = make_reply_kb([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]])
+                        await update.message.reply_text(f"لقد اخترت: {state.get('edu_type')}\nالرجاء مشاركة رقم هاتفك بالزر أدناه:", reply_markup=kb)
+                    return
+            # worker flow
+            if state.get("role") == "worker":
+                if state.get("step") == "name":
+                    state["name"] = text; state["step"] = "work_type"
+                    # show top-level service categories first (same as clients) so the
+                    # worker can pick a category or a direct service quickly.
+                    cats = list(SERVICE_CATEGORIES.keys())
+                    kb = make_reply_kb([[c] for c in cats])
+                    await update.message.reply_text("اختر الفئة/الخدمة المناسبة لك:", reply_markup=kb); return
+                if state.get("step") == "work_type":
+                    if text in WORK_TYPES:
+                        state["work_type"] = text
+                        # Special flow for educational services: ask for specific edu type to organize later
+                        if text in EDUCATION_SERVICE_ALIASES:
+                            # ask which teaching division (existing) and then ask for specialization
+                            state["step"] = "edu_type"
+                            edu_kb = make_reply_kb([
+                                ["تمهيدي", "إعدادي"],
+                                ["ثانوي أو معهد", "اكاديمي"]
+                            ])
+                            await update.message.reply_text("اختر قسم التدريس المناسب لك (تمهيدي / إعدادي / ثانوي أو معهد / اكاديمي):", reply_markup=edu_kb)
+                        # Special flow for internet technicians: ask for company name
+                        elif text == "فني انترنت":
+                            state["step"] = "company_name"
+                            await update.message.reply_text("ما اسم الشركة التي تعمل بها؟ (اكتب اسم الشركة أو اكتب 'فردي' إذا تعمل لحسابك الخاص)")
+                        # Special flow for flooring workers: ask for their specific specialization
+                        elif text == "أرضيات":
+                            state["step"] = "work_specialization"
+                            await update.message.reply_text("ما تخصصك داخل مجال الأرضيات؟ (مثال: تركيب بلاط، صقل أرضيات، تركيب سيراميك، ...)")
+                        # Special flow for vehicle transport services: ask for vehicle type
+                        elif text == "سيارات نقل":
+                            state["step"] = "vehicle_type"
+                            await update.message.reply_text("ما نوع سيارتك؟ (مثال: نقل أثاث، نقل بضائع، شاحنة صغيرة، ...)")
+                        else:
+                            state["step"] = "phone"
+                            await update.message.reply_text("يرجى إدخال رقم هاتفك أو مشاركة جهة الاتصال:")
+                    else:
+                        await update.message.reply_text("الرجاء اختيار نوع العمل من الأزرار.")
+                    return
+                if state.get("step") == "edu_type":
+                    # store the educational service subtype and then ask for specialization
+                    state["edu_type"] = text
+                    state["step"] = "edu_specialization"
+                    await update.message.reply_text("ما تخصصك داخل هذا القسم؟ (مثال: رياض أطفال، لغة عربية، فيزياء، ...)")
+                    return
+                if state.get("step") == "edu_specialization":
+                    state["edu_specialization"] = text
+                    state["step"] = "phone"
+                    await update.message.reply_text("شكرًا. الآن ادخل رقم هاتفك أو شارك جهة الاتصال:")
+                    return
+                if state.get("step") == "work_specialization":
+                    # store the flooring/work specialization and continue to phone step
+                    state["work_specialization"] = text
+                    state["step"] = "phone"
+                    await update.message.reply_text("شكرًا. الآن ادخل رقم هاتفك أو شارك جهة الاتصال:")
+                    return
+                if state.get("step") == "company_name":
+                    state["company_name"] = text
+                    state["step"] = "phone"
+                    await update.message.reply_text("شكرًا. الآن ادخل رقم هاتفك أو شارك جهة الاتصال:")
+                    return
+                if state.get("step") == "vehicle_type":
+                    # store the vehicle type and continue to phone step
+                    state["vehicle_type"] = text
+                    state["step"] = "phone"
+                    await update.message.reply_text("شكرًا. الآن ادخل رقم هاتفك أو شارك جهة الاتصال:")
+                    return
+                if state.get("step") == "phone":
+                    raw = text; logging.info("Worker phone raw input: %r from user %s", raw, user_id)
+                    norm = normalize_phone(raw)
+                    if not norm:
+                        await update.message.reply_text("رقم الهاتف غير صالح. ارسله بصيغة 0912xxxxxx أو +2189xxxxxxx. حاول مرة أخرى:"); return
+                    state["phone"] = norm
+                    # Persist an initial worker row now so coupon redemption (which
+                    # updates the workers table) will succeed even before we have
+                    # the location. save_worker_to_db will INSERT or UPDATE as needed.
+                    try:
+                        save_worker_to_db(user_id, state)
+                    except Exception:
+                        logging.exception("Failed to pre-save worker before subscription selection")
+                    state["step"] = "choose_sub"
+                    # عرض أزرار اختيار الفئة بدل طلب الكود مباشرة
+                    sub_kb = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("الفئة الذهبية — 100 د.ل", callback_data=f"pick_sub:gold")],
+                        [InlineKeyboardButton("الفئة الفضية — 60 د.ل", callback_data=f"pick_sub:silver")],
+                        [InlineKeyboardButton("ليس الآن", callback_data="skip_sub")]
+                    ])
+                    await update.message.reply_text("اختر نوع الاشتراك الذي تريد تفعيله ثم أدخل كود القسيمة المناسب أو اختر 'ليس الآن' للمتابعة دون اشتراك:", reply_markup=sub_kb)
+                    return
+                if state.get("step") == "await_coupon_code":
+                    code_input = text.strip()
+                    if not code_input:
+                        await update.message.reply_text("الرجاء إدخال كود صالح."); return
+
+                    ok, msg = redeem_coupon_for_worker(code_input, user_id, target_worker_user_id=user_id, desired_tier=state.get("desired_tier"))
+                    await update.message.reply_text(msg)
+                    if ok:
+                        # coupon applied (DB updated). Continue to request location
+                        # so we can save the worker's coordinates and complete
+                        # registration.
+                        state["step"] = "location"
+                        user_states[user_id] = state
+                        kb = make_reply_kb([[KeyboardButton("إرسال الموقع", request_location=True)]])
+                        await update.message.reply_text("تم تفعيل الاشتراك. الآن الرجاء مشاركة موقعك لإكمال التسجيل:", reply_markup=kb)
+                    return
+            # view_my_account flow: user enters a worker code to view their stats
+            if state.get("role") == "view_my_account":
+                if state.get("step") == "enter_code":
+                    code_text = text.strip()
+                    try:
+                        code_val = int(re.sub(r"\D", "", code_text))
+                    except Exception:
+                        await update.message.reply_text("الكود يجب أن يكون رقمياً. أعد إدخال رقم المعرف الخاص بك:")
+                        return
+                    w = fetch_worker_by_code(code_val)
+                    if not w:
+                        await update.message.reply_text("لم أجد عاملاً بهذا الكود. تأكد من الرقم وحاول مرة أخرى.")
+                        return
+                    # Allow viewing by code: do NOT require user_id ownership match.
+                    # (This enables a worker to view their record by entering their code.)
+                    # fetch rating stats for this worker
+                    cnt, avg = fetch_rating_stats(w.get("user_id"))
+                    # format subscription expiry as date only (YYYY-MM-DD)
+                    sub_exp = w.get("subscription_expiry") or ""
+                    try:
+                        if sub_exp and sub_exp != "":
+                            exp_dt = datetime.fromisoformat(sub_exp)
+                            sub_exp_fmt = exp_dt.strftime("%Y-%m-%d")
+                        else:
+                            sub_exp_fmt = "لا يوجد اشتراك"
+                    except Exception:
+                        sub_exp_fmt = str(sub_exp)
+                    appearance = w.get("appearance_count", 0) or 0
+                    selected = w.get("selected_count", 0) or 0
+                    ratings_received = cnt or 0
+                    work_type = w.get("work_type") or "-"
+                    # subscription level name
+                    try:
+                        lvl = int(w.get("subscription_level") or 0)
+                    except Exception:
+                        lvl = 0
+                    if lvl == 1:
+                        sub_name = "ذهبي"
+                    elif lvl == 2:
+                        sub_name = "فضي"
+                    else:
+                        sub_name = "بلا اشتراك"
+
+                    msg = (
+                        f"إحصاءات الحساب (الكود: {code_val}):\n"
+                        f"نوع الفئة: {work_type}\n"
+                        f"فئة الاشتراك: {sub_name}\n"
+                        f"تاريخ انتهاء الاشتراك: {sub_exp_fmt}\n"
+                        f"عدد مرات الظهور: {appearance}\n"
+                        f"عدد مرات الاختيار: {selected}\n"
+                        f"التقييمات (عدد/متوسط): {ratings_received} / {avg:.2f}\n"
+                    )
+                    await update.message.reply_text(msg, reply_markup=MAIN_KB)
+                    user_states.pop(user_id, None)
+                    return
+
+            # redeem flow
+            if state.get("role") == "redeem" and state.get("step") == "code":
+                code = text.strip(); ok, msg = redeem_coupon_for_worker(code, user_id)
+                await update.message.reply_text(msg); user_states.pop(user_id, None); return
+    except Exception:
+        logging.exception("Error in handle_buttons")
+        try:
+            await update.message.reply_text("حدث خطأ داخلي. أعد المحاولة أو اكتب /start.")
+        except Exception:
+            pass
+    await update.message.reply_text("لم أفهم. استخدم الأزرار أو اكتب /start للعودة للقائمة.", reply_markup=MAIN_KB)
+        if text_l in ("التسجيل للعملاء", "📝 التسجيل للعملاء", "التسجيل للحرفيين", "📝 التسجيل للحرفيين") or text_l in SERVICE_KEYS or text_l in ABOUT_KEYS or text_l in CONTACT_KEYS:
+            user_states.pop(user_id, None)
+        if text_l == "التجيل للعملاء":
+            name = None
+            if update.effective_user:
+                fn = update.effective_user.first_name or ""; ln = update.effective_user.last_name or ""; name = (fn + " " + ln).strip() or None
+            contact = getattr(update.message, "contact", None)
+            phone = contact.phone_number if contact and getattr(contact, "phone_number", None) else None
+            user_states[user_id] = {"role": "subscriber", "step": ("location" if phone else "phone"), "name": name, "phone": phone}
+            if phone:
+                kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(f"تم استخدام اسم ملفك الشخصي: {name or 'غير متوفر'}\nالآن اضغط لإرسال موقعك:", reply_markup=kb)
+            else:
+                kb = ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(f"سيُستخدم اسم ملفك الشخصي: {name or 'غير متوفر'}\nالرجاء مشاركة رقم هاتفك بالزر أدناه:", reply_markup=kb)
+            return
+        if text_l in ("التسجيل للحرفيين", "📝 التسجيل للحرفيين"):
+            user_states[user_id] = {"role": "worker", "step": "name"}
+            await update.message.reply_text("سجل كعامل - يرجى إدخال اسمك:")
+            return
+        if text_l in SERVICE_KEYS:
+            # Show top-level categories (two-level menu) instead of a flat
+            # list of all work types. This keeps the UI consistent with the
+            # canonical browsing flow elsewhere in the file.
+            cats = list(SERVICE_CATEGORIES.keys())
+            kb = make_reply_kb([[c] for c in cats])
+            # record browsing state so the back button can return correctly
+            user_states[user_id] = {"role": "browsing", "step": "categories"}
+            await update.message.reply_text("اختر الفئة التي تريد تصفح خدماتها:", reply_markup=kb)
+            return
+        if text in WORK_TYPES and user_id not in user_states:
+            name = None
+            if update.effective_user:
+                fn = update.effective_user.first_name or ""; ln = update.effective_user.last_name or ""; name = (fn + " " + ln).strip() or None
+            contact = getattr(update.message, "contact", None)
+            phone = contact.phone_number if contact and getattr(contact, "phone_number", None) else None
+            state = {"role": "client", "service": text, "name": name, "phone": phone}
+            # If client requested educational services, ask which teaching division they want
+            if text == "الخدمات التعليمية":
+                state["step"] = "edu_choice"
+                user_states[user_id] = state
+                edu_kb = ReplyKeyboardMarkup([
+                    ["تمهيدي", "إعدادي"],
+                    ["ثانوي أو معهد", "اكاديمي"]
+                ], resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(f"لقد اخترت: {text}\nاختر قسم التدريس المناسب للمعلم الذي تريده:", reply_markup=edu_kb)
+                return
+            if phone:
+                state["step"] = "location"; user_states[user_id] = state
+                kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(f"لقد اخترت: {text}\nالاسم المستخدم: {name or 'غير متوفر'}\nالآن شارك موقعك:", reply_markup=kb)
+            else:
+                state["step"] = "phone"; user_states[user_id] = state
+                kb = ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(f"لقد اخترت: {text}\nسيُستخدم اسم ملفك الشخصي: {name or 'غير متوفر'}\nالرجاء مشاركة رقم هاتفك بالزر أدناه:", reply_markup=kb)
+            return
+        if user_id in user_states:
+            state = user_states[user_id]
+            # subscriber flow
+            if state.get("role") == "subscriber":
+                if state.get("step") == "name":
+                    state["name"] = text; state["step"] = "phone"
+                    await update.message.reply_text("يرجى إدخال رقم هاتفك أو مشاركة جهة الاتصال:"); return
+                if state.get("step") == "phone":
+                    if not is_valid_phone(text):
+                        await update.message.reply_text("رقم الهاتف غير صالح. ارسله بصيغة 091xxxxxxx أو 9xxxxxxx أو +2189xxxxxxx."); return
+                    state["phone"] = normalize_phone(text); state["step"] = "location"
+                    kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)
+                    await update.message.reply_text("الآن اضغط 'إرسال الموقع' لمشاركة موقعك:", reply_markup=kb); return
+            # client flow
+            if state.get("role") == "client":
+                if state.get("step") == "awaiting_request_id":
+                    if text.isdigit():
+                        req = fetch_client_request_by_id(int(text))
+                        if req:
+                            state["name"] = req.get("name"); state["phone"] = req.get("phone")
+                            state["step"] = "location" if state.get("phone") else "phone"
+                            await update.message.reply_text("تم استرجاع بيانات الطلب. أرسل موقعك أو أدخل هاتفك:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)); return
+                    await update.message.reply_text("رمز الطلب غير صحيح. اعد المحاولة أو اكتب اسمك."); state["step"] = "name"; return
+                if state.get("step") == "name":
+                    if text.isdigit():
+                        sub = fetch_subscriber_by_id(int(text))
+                        if sub:
+                            state["name"] = sub["name"]; state["phone"] = sub.get("phone"); state["step"] = "location" if state.get("phone") else "phone"
+                            await update.message.reply_text("تم استرجاع بيانات المشترك. أرسل موقعك أو أدخل هاتفك:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)); return
+                        req = fetch_client_request_by_id(int(text))
+                        if req:
+                            state["request_id"] = req["id"]; state["name"] = req.get("name"); state["phone"] = req.get("phone"); state["step"] = "location" if state.get("phone") else "phone"
+                            await update.message.reply_text("تم استرجاع بيانات الطلب. أرسل موقعك أو ادخل هاتفك:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)); return
+                    state["name"] = text; state["step"] = "phone"; await update.message.reply_text("يرجى إدخال رقم هاتفك أو مشاركة جهة الاتصال:"); return
+                if state.get("step") == "phone":
+                    if not is_valid_phone(text):
+                        await update.message.reply_text("رقم الهاتف غير صالح. ارسله بصيغة 091xxxxxxx أو +2189xxxxxxx."); return
+                    state["phone"] = normalize_phone(text); state["step"] = "location"
+                    await update.message.reply_text("الآن اضغط 'إرسال الموقع' لمشاركة موقعك:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)); return
+                if state.get("step") == "edu_choice":
+                    # client chose which teaching division they want
+                    state["edu_type"] = text
+                    # after selecting edu_type proceed to phone/location as usual
+                    if state.get("phone"):
+                        state["step"] = "location"
+                        kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)
+                        await update.message.reply_text(f"لقد اخترت: {state.get('edu_type')}\nالآن شارك موقعك:", reply_markup=kb)
+                    else:
+                        state["step"] = "phone"
+                        kb = ReplyKeyboardMarkup([[KeyboardButton("مشاركة جهة الاتصال", request_contact=True)]], resize_keyboard=True, one_time_keyboard=True)
+                        await update.message.reply_text(f"لقد اخترت: {state.get('edu_type')}\nالرجاء مشاركة رقم هاتفك بالزر أدناه:", reply_markup=kb)
+                    return
+            # worker flow
+            if state.get("role") == "worker":
+                if state.get("step") == "name":
+                    state["name"] = text; state["step"] = "work_type"
+                    kb = ReplyKeyboardMarkup([[w] for w in WORK_TYPES], resize_keyboard=True, one_time_keyboard=True)
+                    await update.message.reply_text("اختر نوع عملك:", reply_markup=kb); return
+                if state.get("step") == "work_type":
+                    if text in WORK_TYPES:
+                        state["work_type"] = text
+                        # Special flow for educational services: ask for specific edu type to organize later
+                        if text == "الخدمات التعليمية":
+                            state["step"] = "edu_type"
+                            edu_kb = ReplyKeyboardMarkup([
+                                ["تمهيدي", "إعدادي"],
+                                ["ثانوي أو معهد", "اكاديمي"]
+                            ], resize_keyboard=True, one_time_keyboard=True)
+                            await update.message.reply_text("اختر قسم التدريس المناسب لك (تمهيدي / إعدادي / ثانوي أو معهد / اكاديمي):", reply_markup=edu_kb)
+                        else:
+                            state["step"] = "phone"
+                            await update.message.reply_text("يرجى إدخال رقم هاتفك أو مشاركة جهة الاتصال:")
+                    else:
+                        await update.message.reply_text("الرجاء اختيار نوع العمل من الأزرار.")
+                    return
+                if state.get("step") == "edu_type":
+                    # store the educational service subtype and continue to phone step
+                    state["edu_type"] = text
+                    state["step"] = "phone"
+                    await update.message.reply_text("شكرًا. الآن ادخل رقم هاتفك أو شارك جهة الاتصال:")
+                    return
+                if state.get("step") == "phone":
+                    raw = text; logging.info("Worker phone raw input: %r from user %s", raw, user_id)
+                    norm = normalize_phone(raw)
+                    if not norm:
+                        await update.message.reply_text("رقم الهاتف غير صالح. ارسله بصيغة 0912xxxxxx أو +2189xxxxxxx. حاول مرة أخرى:"); return
+                    state["phone"] = norm
+                    state["step"] = "choose_sub"
+                    # عرض أزرار اختيار الفئة بدل طلب الكود مباشرة
+                    sub_kb = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("الفئة الذهبية — 100 د.ل", callback_data=f"pick_sub:gold")],
+                        [InlineKeyboardButton("الفئة الفضية — 60 د.ل", callback_data=f"pick_sub:silver")]
+                    ])
+                    await update.message.reply_text("اختر نوع الاشتراك الذي تريد تفعيله ثم أدخل كود القسيمة المناسب:", reply_markup=sub_kb)
+                    return
+                if state.get("step") == "await_coupon_code":
+                    code_input = text.strip()
+                    if not code_input:
+                        await update.message.reply_text("الرجاء إدخال كود صالح."); return
+
+                    # ابحث عن القسيمة في DB مع بعض التحويرات (VIP-.. أو بصيغة بدون أصفار بادئة)
+                    raw = re.sub(r"[^\w\-]", "", code_input.strip().upper())
+                    raw_nz = re.sub(r"^0+", "", raw)
+                    candidates = []
+                    for cand in (raw, raw_nz):
+                        if cand:
+                            candidates.append(cand)
+                            if not cand.startswith("VIP-"):
+                                candidates.append("VIP-" + cand)
+                    seen = []
+                    candidates = [c for c in candidates if c and (c not in seen and not seen.append(c))]
+
+                    conn = sqlite3.connect(DB_PATH)
+                    cur = conn.cursor()
+                    found = None
+                    for c in candidates:
+                        cur.execute("SELECT id, amount, used, code FROM coupons WHERE UPPER(code) = ?", (c.upper(),))
+                        row = cur.fetchone()
+                        if row:
+                            found = row
+                            break
+                    if not found:
+                        conn.close()
+                        await update.message.reply_text("الكود غير موجود أو غير صالح."); return
+                    cid, amount, used, actual_code = found
+                    if used:
+                        conn.close()
+                        await update.message.reply_text("هذا الكود مُستخدم مسبقاً."); return
+
+                    desired = state.get("desired_tier")
+                    if desired == "gold" and int(amount) != 100:
+                        conn.close()
+                        await update.message.reply_text("هذا الكود ليس مخصصًا للفئة الذهبية. استخدم كودًا بفئة 100 د.ل."); return
+                    if desired == "silver" and int(amount) != 60:
+                        conn.close()
+                        await update.message.reply_text("هذا الكود ليس مخصصًا للفئة الفضية. استخدم كودًا بفئة 60 د.ل."); return
+
+                    # تحديد المستوى والمدة حسب الاختيار (التوافق مع متطلباتك)
+                    if desired == "gold":
+                        level = 1; days = 32; tier_name = "ذهبي"
+                    else:
+                        level = 2; days = 30; tier_name = "فضي"
+                    expiry = datetime.utcnow() + timedelta(days=days)
+                    expiry_iso = expiry.isoformat()
+
+                    try:
+                        # وسم القسيمة كمستخدمة
+                        cur.execute("UPDATE coupons SET used=1, used_by_worker_user_id=?, used_at=? WHERE id=?", (user_id, expiry_iso, cid))
+                        # خزّن معلومات الاشتراك مؤقتاً في state (سيتم حفظها عند حفظ العامل بعد الموقع)
+                        state["subscription_level"] = level
+                        state["subscription_expiry"] = expiry_iso
+                        state["coupon_code"] = actual_code
+                        conn.commit()
+                        conn.close()
+                        state["step"] = "location"
+                        user_states[user_id] = state
+                        kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)
+                        await update.message.reply_text(f"تم قبول الكود للفئة {tier_name}. الآن اضغط 'إرسال الموقع' لمشاركة موقعك:", reply_markup=kb)
+                    except Exception:
+                        conn.close()
+                        logging.exception("Error while marking coupon used")
+                        await update.message.reply_text("حدث خطأ أثناء تفعيل الكود. حاول مرة أخرى أو تواصل مع الدعم.")
+                    return
+            # redeem flow
+            if state.get("role") == "redeem" and state.get("step") == "code":
+                code = text.strip(); ok, msg = redeem_coupon_for_worker(code, user_id)
+                await update.message.reply_text(msg); user_states.pop(user_id, None); return
+    except Exception:
+        logging.exception("Error in handle_buttons")
+        try:
+            await update.message.reply_text("حدث خطأ داخلي. أعد المحاولة أو اكتب /start.")
+        except Exception:
+            pass
+    await update.message.reply_text("لم أفهم. استخدم الأزرار أو اكتب /start للعودة للقائمة.", reply_markup=MAIN_KB)
+
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        msg = update.message
+        if not msg or not msg.contact:
+            return
+        user_id = msg.from_user.id
+        phone_raw = msg.contact.phone_number
+        logging.info("handle_contact: user=%s phone=%r", user_id, phone_raw)
+        if not phone_raw:
+            await msg.reply_text("لم نتلقَ رقم هاتف. أعد مشاركة جهة الاتصال."); return
+        phone = normalize_phone(phone_raw)
+        if not phone:
+            await msg.reply_text("رقم الهاتف غير صالح. استخدم 091xxxxxxx أو +2189xxxxxxx."); return
+        state = user_states.get(user_id)
+        if not state:
+            await msg.reply_text("ابدأ من جديد بالضغط على /start."); return
+        role = state.get("role"); step = state.get("step")
+        if role in ("subscriber", "client") and step == "phone":
+            state["phone"] = phone; state["step"] = "location"
+            kb = ReplyKeyboardMarkup([[KeyboardButton("إرسال الموقع", request_location=True)]], resize_keyboard=True, one_time_keyboard=True)
+            await msg.reply_text("تم استلام رقمك. الآن شارك موقعك.", reply_markup=kb); return
+        if role == "worker" and step == "phone":
+            state["phone"] = phone; state["step"] = "coupon"
+            await msg.reply_text("أدخل كود الاشتراك لتكملة التسجيل."); return
+        await msg.reply_text("تم حفظ جهة الاتصال. تابع أو اكتب /start.")
+    except Exception:
+        logging.exception("Error in handle_contact")
+        try:
+            await update.message.reply_text("حدث خطأ أثناء معالجة جهة الاتصال. أعد المحاولة أو /start.")
+        except Exception:
+            pass
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        await query.answer()
+        data = query.data or ""
+        user_id = query.from_user.id
+
+        # user chose subscription type during التسجيل
+        if data.startswith("pick_sub:"):
+            parts = data.split(":")
+            if len(parts) != 2:
+                await query.edit_message_text("خطأ في اختيار الفئة. حاول مرة أخرى.")
+                return
+            tier = parts[1]
+            state = user_states.get(user_id, {})
+            if state.get("role") != "worker":
+                await query.edit_message_text("هذه الخاصية متاحة فقط للعاملين أثناء التسجيل.")
+                return
+            state["desired_tier"] = tier
+            state["step"] = "await_coupon_code"
+            user_states[user_id] = state
+            try:
+                await query.edit_message_text(f"لقد اخترت الفئة: {'ذهبية' if tier=='gold' else 'فضية'}.\nأدخل الآن كود القسيمة المناسب لهذه الفئة:")
+            except Exception:
+                await query.message.reply_text("أدخل الآن كود القسيمة المناسب لهذه الفئة:")
+            return
+
+        # user chose a worker for their request: format choose:{client_id}:{worker_user_id}
+        if data.startswith("choose:"):
+            parts = data.split(":")
+            if len(parts) != 3:
+                await query.edit_message_text("خطأ في اختيار العامل. حاول مرة أخرى.")
+                return
+            client_id = int(parts[1])
+            try:
+                worker_user_id = int(parts[2])
+            except Exception:
+                await query.edit_message_text("خطأ في معرف العامل.")
+                return
+            # سجل التعيين في DB وزدّ عداد الاختيار
+            try:
+                assign_worker_to_client(client_id, worker_user_id)
+                increment_worker_selected(worker_user_id, by=1)
+            except Exception:
+                logging.exception("Failed to assign worker")
+                await query.edit_message_text("حدث خطأ أثناء اختيار العامل. حاول مرة أخرى.")
+                return
+            # تأكيد للمستخدم وإعلام العامل
+            await query.edit_message_text("تم اختيار هذا الحرفي وسيتم التواصل معه. شكراً.")
+            try:
+                # حاول إرسال إشعار للعامل إن أمكن
+                await context.bot.send_message(worker_user_id, f"تم اختيارك لطلب رقم {client_id} من قبل المستخدم {user_id}.")
+            except Exception:
+                logging.debug("Could not notify worker (maybe hasn't started the bot).")
+            return
+
+        # فتح نافذة تقييم
+        if data.startswith("open_rate:"):
+            parts = data.split(":")
+            if len(parts) != 2:
+                await query.edit_message_text("خطأ في فتح صفحة التقييم.")
+                return
+            try:
+                target_worker = int(parts[1])
+            except Exception:
+                await query.edit_message_text("خطأ في معرف العامل."); return
+            # أرسل أزرار تقييم بسيطة (1-5)
+            kb = InlineKeyboardMarkup([[InlineKeyboardButton(str(i), callback_data=f"rate:{target_worker}:{i}") for i in range(1,6)]])
+            try:
+                await query.message.reply_text("اختر تقييمك (1-5):", reply_markup=kb)
+            except Exception:
+                await query.edit_message_text("اختر تقييمك (1-5):")
+            return
+
+        # استلام تقييم
+        if data.startswith("rate:"):
+            parts = data.split(":")
+            if len(parts) < 3:
+                await query.edit_message_text("خطأ في التقييم.")
+                return
+            try:
+                target_worker = int(parts[1]); score = int(parts[2])
+            except Exception:
+                await query.edit_message_text("خطأ في بيانات التقييم."); return
+            # حفظ التقييم
+            try:
+                save_rating_to_db(target_worker, user_id, score, comment=None)
+                await query.message.reply_text("شكراً لتقييمك.")
+            except Exception:
+                logging.exception("Failed saving rating")
+                await query.message.reply_text("حدث خطأ أثناء حفظ التقييم.")
+            return
+
+        # ...existing callback handling for other cases...
+    except Exception:
+        logging.exception("Error in handle_callback")
+        try:
+            if update.callback_query:
+                await update.callback_query.edit_message_text("حدث خطأ أثناء المعالجة.")
+        except Exception:
+            pass
+
+async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user_id = update.message.from_user.id
+        logging.info("handle_location called for user %s ; update=%r", user_id, update)
+        state = user_states.get(user_id)
+        if not state:
+            await update.message.reply_text("لم يتم تحديد عملية سابقة. اضغط أحد الأزرار في القائمة أو اكتب /start للبدء."); return
+        if not getattr(update.message, "location", None):
+            await update.message.reply_text("لم نتلقَ الموقع. الرجاء استخدام زر 'إرسال الموقع' لمشاركة موقعك."); return
+        lat = update.message.location.latitude; lon = update.message.location.longitude
+        # use the shared main keyboard so buttons are consistent for clients
+        main_kb = MAIN_KB
+
+        # subscriber branch removed (no more saving subscribers)
+
+        # worker branch (unchanged)
+        if state.get("role") == "worker" and state.get("step") in ("location",):
+            state["location"] = (lat, lon)
+            try:
+                worker_id = save_worker_to_db(user_id, state)
+            except Exception:
+                logging.exception("Failed saving worker")
+                await update.message.reply_text("حدث خطأ أثناء حفظ بيانات العامل. حاول مرة أخرى لاحقاً أو اكتب /start.")
+                if ADMIN_ID:
+                    tb = traceback.format_exc(); await context.bot.send_message(ADMIN_ID, f"Error saving worker {user_id}:\n{tb[:3000]}")
+                return
+            workers[user_id] = state.copy(); user_states.pop(user_id, None)
+            await update.message.reply_text(f"شكراً لتسجيلك كعامل.\nتم حفظ بياناتك.\nرقم المعرف: {worker_id}", reply_markup=ReplyKeyboardRemove())
+
+            sub_kb = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("اشتراك الفئة الذهبية", callback_data=f"sub:gold:{worker_id}"),
+                    InlineKeyboardButton("الفئة الفضية", callback_data=f"sub:silver:{worker_id}")
+                ]
+            ])
+            await update.message.reply_text(
+                "اختر اشتراكك لتحصل على مميزات إضافية (أولوية في الظهور وغيرها):",
+                reply_markup=sub_kb
+            )
+
+            await update.message.reply_text("الرجوع إلى القائمة الرئيسية:", reply_markup=main_kb); return
+
+        # client request flow unchanged (clients are recorded as requests directly)
+        if state.get("role") == "client" and state.get("step") in ("location",):
+            state["location"] = (lat, lon)
+            service = state.get("service")
+            # If this is an educational service request, filter workers by the requested edu_type
+            if service == "الخدمات التعليمية":
+                db_workers = fetch_workers_by_service(service, edu_type=state.get("edu_type"))
+            else:
+                db_workers = fetch_workers_by_service(service)
+            MAX_KM = 100.0
+            workers_in_range = []
+            for w in db_workers:
+                try:
+                    if not w.get("location") or None in w.get("location"): continue
+                    dist_km = calc_distance(state["location"], w["location"])
+                    if dist_km <= MAX_KM:
+                        workers_in_range.append({
+                            "id": w.get("id"),
+                            "user_id": w.get("user_id"),
+                            "name": w.get("name"),
+                            "phone": w.get("phone"),
+                            "work_type": w.get("work_type"),
+                            "location": w.get("location"),
+                            "subscription_level": int(w.get("subscription_level") or 0),
+                            "subscription_expiry": w.get("subscription_expiry"),
+                            "dist_km": dist_km
+                        })
+                except Exception:
+                    logging.exception("Error computing distance for worker row: %r", w)
+            try:
+                client_id = save_client_request_to_db(user_id, state, req_id=state.get("request_id"))
+            except Exception:
+                logging.exception("Failed saving client request")
+                await update.message.reply_text("حدث خطأ أثناء حفظ طلبك. حاول مرة واحدة أخرى أو اكتب /start.")
+                if ADMIN_ID:
+                    tb = traceback.format_exc(); await context.bot.send_message(ADMIN_ID, f"Error saving client request {user_id}:\n{tb[:3000]}")
+                return
+            if not workers_in_range:
+                await update.message.reply_text("عذراً، لا يوجد عمال متوفرون بنفس الخدمة ضمن 100 كم.", reply_markup=ReplyKeyboardRemove())
+            else:
+                workers_in_range.sort(key=lambda x: (-x["subscription_level"], x["dist_km"]))
+                for w in workers_in_range:
+                    # زيادة ظهور الحرفي لأننا سانعرضه للمستخدم
+                    try:
+                        increment_worker_appearance(w['user_id'], by=1)
+                    except Exception:
+                        logging.debug("Failed increment appearance for worker %s", w['user_id'])
+                    block = (
+                        "━━━━━━━━━━━━━━━━━━━━\n"
+                        f"الاسم: {w.get('name') or '-'}\n"
+                        f"الخدمة: {w.get('work_type') or service}\n"
+                        f"الهاتف: {w.get('phone') or '-'}\n"
+                        f"المسافة: ≈{w['dist_km']:.1f} كم\n"
+                        "━━━━━━━━━━━━━━━━━━━━"
+                    )
+                    kb = InlineKeyboardMarkup([[InlineKeyboardButton("اختر هذا الحرفي", callback_data=f"choose:{client_id}:{w['user_id']}"),
+                                                InlineKeyboardButton("قيّم", callback_data=f"open_rate:{w['user_id']}")]])
+                    await update.message.reply_text(block, reply_markup=kb)
+            user_states.pop(user_id, None)
+            await update.message.reply_text(f"شكراً. رقم الطلب الخاص بك: {client_id}", reply_markup=main_kb)
+            return
+
+        logging.info("handle_location: unexpected state for user %s -> %s", user_id, state)
+        await update.message.reply_text("تعذّر إكمال العملية. الرجاء البدء من جديد بالضغط على /start أو زر في القائمة.", reply_markup=main_kb)
+    except Exception:
+        logging.exception("Error in handle_location")
+        try:
+            await update.message.reply_text("حدث خطأ داخلي عند معالجة الموقع. أعد المحاولة أو اكتب /start.")
+        except Exception:
+            pass
+        if ADMIN_ID:
+            tb = traceback.format_exc(); await context.bot.send_message(ADMIN_ID, f"Exception in handle_location for user {user_id}:\n{tb[:3000]}")
+
+async def myid_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    sub = fetch_subscriber_by_user_id(user_id)
+    if not sub:
+        await update.message.reply_text("أنت غير مسجل كمشترك. استخدم 'sign up for client' للتسجيل."); return
+    await update.message.reply_text(f"رقم التعريف الخاص بك هو: {sub['id']}")
+
+async def list_subscribers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    subs = fetch_subscribers()
+    if not subs:
+        await update.message.reply_text("لا يوجد مشتركين مسجلين."); return
+    lines = [f"{s['id']} — {s['name'] or 'لا اسم'} ({s['phone'] or 'لا هاتف'})" for s in subs[:100]]
+    text = "المشتركون (آخر 100):\n" + "\n".join(lines)
+    if len(text) > 4000:
+        from io import BytesIO
+        bio = BytesIO(text.encode("utf-8")); bio.name = "subscribers.txt"; await update.message.reply_document(bio)
+    else:
+        await update.message.reply_text(text)
+
+# ---------- Helpers (phone / utils) ----------
+def is_valid_phone(s):
+    if not s:
+        return False
+    d = re.sub(r"\D", "", str(s))
+    # International starting with country code 2189...
+    if d.startswith("218") and len(d) >= 11 and d[3] == "9":
+        return True
+    # Local formats: 0XXXXXXXXX or 9XXXXXXX
+    if d.startswith("0") and len(d) == 10 and d[1] == "9":
+        return True
+    if len(d) == 8 and d[0] == "9":
+        return True
+    return False
+
+def normalize_phone(s):
+    if not s:
+        return None
+    d = re.sub(r"\D", "", str(s))
+    # drop country code 218 and ensure leading 0
+    if d.startswith("218") and len(d) >= 11:
+        d = d[3:]
+        if not d.startswith("0"):
+            d = "0" + d
+    elif len(d) == 8 and d[0] == "9":
+        d = "0" + d
+    elif len(d) == 10 and d.startswith("0"):
+        pass
+    else:
+        return None
+    return d
+
+def calc_distance(loc1, loc2):
+    """Haversine distance in kilometers between two (lat, lon)."""
+    try:
+        lat1, lon1 = loc1
+        lat2, lon2 = loc2
+        R = 6371.0
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    except Exception:
+        return float("inf")
+
+def make_code(length=8):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+# ---------- Safe fetch helpers (add these) ----------
+def fetch_workers_by_service(service, edu_type=None):
+    """
+    Fetch workers by work_type. If service is educational and edu_type is provided,
+    filter by education_type as well so clients match only teachers of the requested division.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        if service == "الخدمات التعليمية" and edu_type:
+            cur.execute("SELECT id, user_id, name, phone, lat, lon, subscription_level, subscription_expiry, worker_code, work_type, education_type FROM workers WHERE work_type = ? AND education_type = ?", (service, edu_type))
+        else:
+            cur.execute("SELECT id, user_id, name, phone, lat, lon, subscription_level, subscription_expiry, worker_code, work_type, education_type FROM workers WHERE work_type = ?", (service,))
+        rows = cur.fetchall()
+        conn.close()
+        results = []
+        for r in rows:
+            results.append({
+                "id": r[0],
+                "user_id": r[1],
+                "name": r[2],
+                "phone": r[3],
+                "location": (r[4], r[5]),
+                "subscription_level": r[6],
+                "subscription_expiry": r[7],
+                "worker_code": r[8],
+                "work_type": r[9],
+                "education_type": r[10]
+            })
+        return results
+    except sqlite3.OperationalError:
+        return []
+    except Exception:
+        logging.exception("fetch_workers_by_service failed")
+        return []
+
+def fetch_client_request_by_id(rid):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT id, user_id, name, phone, service, lat, lon, assigned_worker_id FROM clients WHERE id = ?", (rid,))
+        r = cur.fetchone()
+        conn.close()
+        if not r:
+            return None
+        return {"id": r[0], "user_id": r[1], "name": r[2], "phone": r[3], "service": r[4], "location": (r[5], r[6]), "assigned_worker_id": r[7]}
+    except sqlite3.OperationalError:
+        return None
+    except Exception:
+        logging.exception("fetch_client_request_by_id failed")
+        return None
+
+def fetch_subscriber_by_id(sid):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, phone, lat, lon FROM subscribers WHERE id = ?", (sid,))
+        r = cur.fetchone()
+        conn.close()
+        if not r:
+            return None
+        return {"id": r[0], "name": r[1], "phone": r[2], "location": (r[3], r[4])}
+    except sqlite3.OperationalError:
+        return None
+    except Exception:
+        logging.exception("fetch_subscriber_by_id failed")
+        return None
+
+def fetch_subscriber_by_user_id(user_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT id, user_id, name, phone, lat, lon FROM subscribers WHERE user_id = ?", (user_id,))
+        r = cur.fetchone()
+        conn.close()
+        if not r:
+            return None
+        return {"id": r[0], "user_id": r[1], "name": r[2], "phone": r[3], "location": (r[4], r[5])}
+    except sqlite3.OperationalError:
+        return None
+    except Exception:
+        logging.exception("fetch_subscriber_by_user_id failed")
+        return None
+
+def fetch_subscribers(limit=100):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, phone FROM subscribers ORDER BY id DESC LIMIT ?", (limit,))
+        rows = cur.fetchall()
+        conn.close()
+        return [{"id": r[0], "name": r[1], "phone": r[2]} for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    except Exception:
+        logging.exception("fetch_subscribers failed")
+        return []
+
+# Update admin panel to use safe fetch functions
+async def send_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id if update.effective_user else None
+    if not ADMIN_ID or uid != ADMIN_ID:
+        await update.message.reply_text("ليس لديك صلاحية الوصول لواجهة الإدارة.")
+        return
+    try:
+        subs = fetch_subscribers()
+        sub_count = len(subs)
+        conn = sqlite3.connect(DB_PATH); cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM workers"); workers_count = cur.fetchone()[0] or 0
+        cur.execute("SELECT id, name, phone, work_type, worker_code, subscription_level, subscription_expiry FROM workers ORDER BY id DESC LIMIT 1000"); wrows = cur.fetchall()
+        conn.close()
+    except Exception:
+        logging.exception("send_admin_panel failed")
+        await update.message.reply_text("فشل في جلب بيانات لوحة الإدارة.")
+        return
+
+    header = f"لوحة الإدارة\nالمشتركون: {sub_count}\nالعمال: {workers_count}\n\n"
+    sub_lines = [f"{s['id']} | {s['name'] or '-'} | {s['phone'] or '-'}" for s in subs]
+    subs_text = "المشتركون (آخر):\n" + ("\n".join(sub_lines) if sub_lines else "(لا سجلات)")
+    w_lines = [f"{wid} | {name or '-'} | {phone or '-'} | {wtype or '-'} | code:{wcode or '-'} | lvl:{level or 0} | exp:{expiry or '-'}" for wid, name, phone, wtype, wcode, level, expiry in wrows]
+    workers_text = "العمال (آخر):\n" + ("\n".join(w_lines) if w_lines else "(لا سجلات)")
+    OUT_LIMIT = 3500
+    await update.message.reply_text(header)
+    if len(subs_text) > OUT_LIMIT:
+        from io import BytesIO
+        bio = BytesIO(subs_text.encode("utf-8")); bio.name = "subscribers.txt"
+        await update.message.reply_document(bio)
+    else:
+        await update.message.reply_text(subs_text)
+    if len(workers_text) > OUT_LIMIT:
+        from io import BytesIO
+        bio = BytesIO(workers_text.encode("utf-8")); bio.name = "workers.txt"
+        await update.message.reply_document(bio)
+    else:
+        await update.message.reply_text(workers_text)
+
+async def _global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    # Simple global handler: only log the exception server-side.
+    try:
+        err = getattr(context, "error", None)
+        logging.exception("Unhandled exception in update: %s", err or "")
+        # لا نرسل أي تفاصيل إلى الأدمن من الواجهة — فقط سجل واصلح لاحقاً على الخادم.
+    except Exception:
+        logging.exception("Error in global error handler")
+
+if __name__ == "__main__":
+    # تهيئة DB
+    init_db()
+
+    # تحقق من وجود قفل سابق وحاول قراءته (هادئ، لا يقاطع التشغيل)
+    try:
+        if os.path.exists(LOCKFILE):
+            try:
+                with open(LOCKFILE, "r") as f:
+                    old = f.read().strip()
+                    logging.info("Found lock file, previous pid: %s", old)
+            except Exception:
+                logging.debug("Could not read lock file")
+    except Exception:
+        logging.debug("Lock check failed")
+
+    # اكتب قفل جديد مع PID الحالي
+    try:
+        with open(LOCKFILE, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        logging.exception("Could not write lock file")
+
+    # إنشاء التطبيق وإضافة المعالجات
+    app = Application.builder().token(TOKEN).build()
+
+    # أوامر
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("redeem", redeem_cmd))
+    app.add_handler(CommandHandler("myid", myid_cmd))
+    app.add_handler(CommandHandler("list_subscribers", list_subscribers_cmd))
+
+    # رسائل وأزرار، جهات اتصال، مواقع، واستدعاءات callback
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    app.add_handler(MessageHandler(filters.LOCATION, handle_location))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    # أي نص غير أمر يعالج بواسطة handle_buttons
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_buttons))
+
+    # معالج أخطاء عام (صامت للأدمن كما عدّلنا)
+    try:
+        app.add_error_handler(_global_error_handler)
+    except Exception:
+        logging.debug("Could not set global error handler")
+
+    # تشغيل البوت مع تنظيف ملف القفل عند التوقف
+    try:
+        logging.info("Starting Application (bot) ...")
+
+        # Ensure an asyncio event loop exists on the main thread (fix RuntimeError: no current event loop)
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = None
+        if loop is None:
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            except Exception:
+                logging.debug("Could not create/set new event loop; continuing with default behavior.")
+
+        app.run_polling(allowed_updates= ["message", "callback_query", "edited_message", "channel_post", "my_chat_member", "chat_member"])
+    except Exception:
+        logging.exception("Application.run_polling exited with exception")
+    finally:
+        try:
+            if os.path.exists(LOCKFILE):
+                os.remove(LOCKFILE)
+        except Exception:
+            logging.debug("Could not remove lock file on exit")

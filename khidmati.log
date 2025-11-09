@@ -1,0 +1,5 @@
+nohup: ignoring input
+/root/telegram-bot-project/.venv/lib64/python3.9/site-packages/telegram/ext/_applicationbuilder.py:292: PTBUserWarning: `Application` instances should be built via the `ApplicationBuilder`.
+  ] = DefaultValue.get_value(  # pylint: disable=not-callable
+INFO:root:Starting khidmati_fixed bot
+INFO:telegram.ext._application:Application started

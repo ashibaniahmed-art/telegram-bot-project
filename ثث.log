@@ -1,0 +1,18 @@
+2025-11-08 18:21:34,553 - INFO - Init DB -> /root/telegram-bot-project/data.db
+2025-11-08 18:21:34,554 - INFO - Database initialized / migrated successfully.
+/root/telegram-bot-project/venv/lib64/python3.8/site-packages/telegram/ext/_applicationbuilder.py:292: PTBUserWarning: `Application` instances should be built via the `ApplicationBuilder`.
+  ] = DefaultValue.get_value(  # pylint: disable=not-callable
+2025-11-08 18:21:34,572 - INFO - Starting Application (bot) ...
+2025-11-08 18:21:35,013 - INFO - Application started
+2025-11-08 18:22:07,938 - INFO - RAW_MSG repr: '🛠️ الخدمات' ; contact=None ; from=1786027999
+2025-11-08 18:27:59,504 - INFO - Application is stopping. This might take a moment.
+2025-11-08 18:27:59,504 - INFO - Application.stop() complete
+2025-11-08 18:28:00,834 - INFO - Init DB -> /root/telegram-bot-project/data.db
+2025-11-08 18:28:00,835 - INFO - Database initialized / migrated successfully.
+/root/telegram-bot-project/venv/lib64/python3.8/site-packages/telegram/ext/_applicationbuilder.py:292: PTBUserWarning: `Application` instances should be built via the `ApplicationBuilder`.
+  ] = DefaultValue.get_value(  # pylint: disable=not-callable
+2025-11-08 18:28:00,854 - INFO - Starting Application (bot) ...
+2025-11-08 18:28:01,172 - INFO - Application started
+2025-11-08 18:29:45,064 - INFO - RAW_MSG repr: '🛠️ الخدمات' ; contact=None ; from=1786027999
+2025-11-08 18:30:39,600 - INFO - Application is stopping. This might take a moment.
+2025-11-08 18:30:39,600 - INFO - Application.stop() complete
