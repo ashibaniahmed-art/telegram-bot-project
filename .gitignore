@@ -3,3 +3,8 @@ data.db
 *.db.bak_*
 __pycache__/
 .venv/
+venv/
+
+# Node and build artifacts
+node_modules/
+dist/
